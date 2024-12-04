@@ -1,87 +1,98 @@
-//
-// Created by Alberto Furlan on 04/12/24.
-//
+#include <iostream>
+#include <cmath>
+#include <cstdlib>
+#include <cassert>
 
-#include "cuda_implementation.cuh"
+using input_type = float;
+using filter_type = input_type;
 
-__global__ void convolve2D(const double* input, const double* kernel, double* output,
-                           int inputRows, int inputCols,
-                           int kernelRows, int kernelCols,
-                           int stride, int outputRows, int outputCols) {
+#define FILTER_RADIUS 4
+#define FILTER_SIZE (FILTER_RADIUS * 2 + 1)
+
+__global__
+void convolution_cuda(const input_type *input, const input_type *filter, input_type *output, const int width, const int height, const int filter_size, const int filter_radius)
+{
     int outRow = blockIdx.y * blockDim.y + threadIdx.y;
     int outCol = blockIdx.x * blockDim.x + threadIdx.x;
 
-    if (outRow < outputRows && outCol < outputCols) {
-        double sum = 0.0;
-        for (int m = 0; m < kernelRows; ++m) {
-            for (int n = 0; n < kernelCols; ++n) {
-                int inRow = outRow * stride + m;
-                int inCol = outCol * stride + n;
-                if (inRow < inputRows && inCol < inputCols) {
-                    sum += input[inRow * inputCols + inCol] * kernel[m * kernelCols + n];
+    if (outRow < height && outCol < width)
+    {
+        input_type value = 0.0f;
+        for (int row = 0; row < filter_size; row++)
+        {
+            for (int col = 0; col < filter_size; col++)
+            {
+                int inRow = outRow - filter_radius + row;
+                int inCol = outCol - filter_radius + col;
+                if (inRow >= 0 && inRow < height && inCol >= 0 && inCol < width)
+                {
+                    value += filter[row * filter_size + col] * input[inRow * width + inCol];
                 }
             }
         }
-        output[outRow * outputCols + outCol] = sum;
+        output[outRow * width + outCol] = value;
     }
 }
 
-void runConvolution(const std::vector<std::vector<double>>& input,
-                    const std::vector<std::vector<double>>& kernel) {
-    int inputRows = input.size();
-    int inputCols = input[0].size();
-    int kernelRows = kernel.size();
-    int kernelCols = kernel[0].size();
-    int stride = 1;
-    int outputRows = (inputRows - kernelRows) / stride + 1;
-    int outputCols = (inputCols - kernelCols) / stride + 1;
-
-    size_t inputSize = inputRows * inputCols * sizeof(double);
-    size_t kernelSize = kernelRows * kernelCols * sizeof(double);
-    size_t outputSize = outputRows * outputCols * sizeof(double);
-
-    double *d_input, *d_kernel, *d_output;
-    cudaMalloc(&d_input, inputSize);
-    cudaMalloc(&d_kernel, kernelSize);
-    cudaMalloc(&d_output, outputSize);
-
-    std::vector<double> flatInput, flatKernel, flatOutput(outputRows * outputCols);
-    for (const auto& row : input)
-        flatInput.insert(flatInput.end(), row.begin(), row.end());
-    for (const auto& row : kernel)
-        flatKernel.insert(flatKernel.end(), row.begin(), row.end());
-
-    cudaMemcpy(d_input, flatInput.data(), inputSize, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_kernel, flatKernel.data(), kernelSize, cudaMemcpyHostToDevice);
-
-    dim3 threadsPerBlock(16, 16);
-    dim3 blocksPerGrid((outputCols + 15) / 16, (outputRows + 15) / 16);
-    convolve2D<<<blocksPerGrid, threadsPerBlock>>>(d_input, d_kernel, d_output,
-                                                   inputRows, inputCols,
-                                                   kernelRows, kernelCols,
-                                                   stride, outputRows, outputCols);
-
-    cudaMemcpy(flatOutput.data(), d_output, outputSize, cudaMemcpyDeviceToHost);
-
-    for (int i = 0; i < outputRows; ++i) {
-        for (int j = 0; j < outputCols; ++j) {
-            std::cout << flatOutput[i * outputCols + j] << " ";
-        }
-        std::cout << std::endl;
+void checkCudaErrors(cudaError_t err)
+{
+    if (err != cudaSuccess)
+    {
+        std::cerr << "CUDA Error: " << cudaGetErrorString(err) << std::endl;
+        exit(EXIT_FAILURE);
     }
+}
+
+int main(int argc, char **argv)
+{
+    if (argc != 2)
+    {
+        printf("Please specify matrix dimensions\n");
+        return EXIT_FAILURE;
+    }
+    const unsigned dim = atoi(argv[1]);
+    const unsigned int width = dim;
+    const unsigned int height = dim;
+
+    input_type *input = new input_type[width * height];               // Input
+    filter_type *filter = new filter_type[FILTER_SIZE * FILTER_SIZE]; // Convolution filter
+    input_type *output_gpu = new input_type[width * height];          // Output (GPU)
+
+    // Randomly initialize the inputs
+    for (int i = 0; i < FILTER_SIZE * FILTER_SIZE; i++)
+        filter[i] = static_cast<filter_type>(rand()) / RAND_MAX;
+
+    for (int i = 0; i < width * height; ++i)
+        input[i] = static_cast<input_type>(rand()) / RAND_MAX; // Random value between 0 and 1
+
+    // Allocate device memory
+    input_type *d_input, *d_filter, *d_output;
+    checkCudaErrors(cudaMalloc(&d_input, width * height * sizeof(input_type)));
+    checkCudaErrors(cudaMalloc(&d_filter, FILTER_SIZE * FILTER_SIZE * sizeof(filter_type)));
+    checkCudaErrors(cudaMalloc(&d_output, width * height * sizeof(input_type)));
+
+    // Copy data to device
+    checkCudaErrors(cudaMemcpy(d_input, input, width * height * sizeof(input_type), cudaMemcpyHostToDevice));
+    checkCudaErrors(cudaMemcpy(d_filter, filter, FILTER_SIZE * FILTER_SIZE * sizeof(filter_type), cudaMemcpyHostToDevice));
+
+    // Launch CUDA kernel
+    dim3 blockDim(16, 16); // 16x16 threads per block
+    dim3 gridDim((width + blockDim.x - 1) / blockDim.x, (height + blockDim.y - 1) / blockDim.y); // Calculate grid size
+
+    convolution_cuda<<<gridDim, blockDim>>>(d_input, d_filter, d_output, width, height, FILTER_SIZE, FILTER_RADIUS);
+    checkCudaErrors(cudaDeviceSynchronize());
+
+    // Copy result back to host
+    checkCudaErrors(cudaMemcpy(output_gpu, d_output, width * height * sizeof(input_type), cudaMemcpyDeviceToHost));
+
+    // Cleanup
+    delete[] input;
+    delete[] filter;
+    delete[] output_gpu;
 
     cudaFree(d_input);
-    cudaFree(d_kernel);
+    cudaFree(d_filter);
     cudaFree(d_output);
-}
 
-int main() {
-    std::vector<std::vector<double>> input = {{1, 2, 3},
-                                              {4, 5, 6},
-                                              {7, 8, 9}};
-    std::vector<std::vector<double>> kernel = {{-1, -2, -1},
-                                                {0,  0,  0},
-                                                {1,  2,  1}};
-    runConvolution(input, kernel);
-    return 0;
+    return EXIT_SUCCESS;
 }
