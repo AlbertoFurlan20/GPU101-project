@@ -5,6 +5,8 @@
 *.cubin
 *.fatbin
 
+# JetBrains IDE files
 .idea
 
+# Build files
 /cmake-build-debug/*
