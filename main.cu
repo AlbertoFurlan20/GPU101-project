@@ -1,7 +1,7 @@
-#include <iostream>
+#include "src/cuda-impl/cuda_implementation.cuh"
 
 int main()
 {
-    std::cout << "Hello, World!" << std::endl;
+    //TODO implement -- CUDA version
     return 0;
 }
