@@ -11,6 +11,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       # Check out the repository code
       - name: Checkout Repository
@@ -22,9 +23,11 @@ jobs:
         with:
           cuda: '12.5.0'
 
-      - run: echo "Installed cuda version is: ${{steps.cuda-toolkit.outputs.cuda}}"
+      - run:
+          echo "Installed cuda version is: ${{steps.cuda-toolkit.outputs.cuda}}"
 
-      - run: echo "Cuda install location: ${{steps.cuda-toolkit.outputs.CUDA_PATH}}"
+      - run:
+          echo "Cuda install location: ${{steps.cuda-toolkit.outputs.CUDA_PATH}}"
 
       - run: nvcc -V
 
