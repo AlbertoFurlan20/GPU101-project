@@ -13,21 +13,37 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Check out the repository code
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - name: Install CUDA
+        run: |
+          wget https://raw.githubusercontent.com/KonduitAI/cuda-install/master/.github/actions/install-cuda-ubuntu/install_cuda_ubuntu.sh
+          chmod +x ./install_cuda_ubuntu.sh
+          ./install_cuda_ubuntu.sh
+          CUDA_VERSION_MAJOR_MINOR=${cuda}
+          # Split the version.
+          # We (might/probably) don't know PATCH at this point - it depends which version gets installed.
+          export CUDA_MAJOR=$(echo "${CUDA_VERSION_MAJOR_MINOR}" | cut -d. -f1)
+          export CUDA_MINOR=$(echo "${CUDA_VERSION_MAJOR_MINOR}" | cut -d. -f2)
+          export CUDA_PATCH=$(echo "${CUDA_VERSION_MAJOR_MINOR}" | cut -d. -f3)
+          # Set paths for subsequent steps, using ${CUDA_PATH}
+          echo "Adding CUDA to CUDA_PATH, PATH and LD_LIBRARY_PATH"
+          echo "CUDA_PATH=/usr/local/cuda-${CUDA_MAJOR}${CUDA_MINOR}" >> $GITHUB_ENV
+          echo "${CUDA_PATH}/bin" >> $GITHUB_PATH
+          echo "LD_LIBRARY_PATH=${CUDA_PATH}/lib:${LD_LIBRARY_PATH}" >> $GITHUB_ENV
+          echo "Added Cuda path ${CUDA_PATH} LD Lib Path ${LD_LIBRARY_PATH}"
+        
 
-      # Install dependencies (e.g., CUDA Toolkit)
-      - uses: Jimver/cuda-toolkit@v0.2.19
-        id: cuda-toolkit
-        with:
-          cuda: '12.5.0'
+        shell: bash
 
-      - run: nvcc -V
-
-      # Configure the project
-#      - name: Configure
-#        run: ./configure
+      # Specify the correct host compilers
+      - name: Install/Select gcc and g++
+        shell: bash
+        run: |
+          sudo apt-get install -y gcc-${{ env.GCC }} g++-${{ env.GCC }}
+          echo "CC=/usr/bin/gcc-${{ env.GCC }}" >> $GITHUB_ENV
+          echo "CXX=/usr/bin/g++-${{ env.GCC }}" >> $GITHUB_ENV
+          echo "CUDAHOSTCXX=/usr/bin/g++-${{ env.GCC }}" >> $GITHUB_ENV
+          sudo apt-get clean
+          sudo apt-get autoclean
 
       # Build the project
       - name: Build
