@@ -1,9 +1,14 @@
 cmake_minimum_required(VERSION 3.22.1)
 
-# Set CUDA compiler before the project declaration
-set(CMAKE_CUDA_COMPILER /usr/local/cuda/bin/nvcc)
-
 project(GPU101_project CUDA CXX)
+
+# Set CUDA compiler before the project declaration
+if (APPLE)
+    message(STATUS "[CONFIG] running configuration for APPLE device")
+    set(CMAKE_CUDA_COMPILER /usr/local/cuda/bin/nvcc)
+elseif (WIN32)
+    message(STATUS "[CONFIG] no extra configuration needed for WINDOWS device")
+endif ()
 
 # Enable CUDA language
 enable_language(CUDA)
