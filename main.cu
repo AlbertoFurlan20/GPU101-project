@@ -1,7 +1,10 @@
 #include "src/cuda-impl/cuda_implementation.cuh"
 
-int main()
+int run()
 {
-    //TODO implement -- CUDA version
+    check_devices_status();
+
+    run_main();
+
     return 0;
 }

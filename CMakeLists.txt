@@ -6,8 +6,23 @@ project(GPU101_project CUDA CXX)
 if (APPLE)
     message(STATUS "[CONFIG] running configuration for APPLE device")
     set(CMAKE_CUDA_COMPILER /usr/local/cuda/bin/nvcc)
+
 elseif (WIN32)
-    message(STATUS "[CONFIG] no extra configuration needed for WINDOWS device")
+    message(STATUS "[CONFIG] running configuration for WINDOWS device")
+    set(CUDA_TOOLKIT_ROOT_DIR "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.6")
+
+    # Find CUDA package
+    message(STATUS "[CONFIG] (1.) finding CUDA")
+    find_package(CUDA REQUIRED)
+
+
+    # Set the include and library directories
+    message(STATUS "[CONFIG] (2.) including directories")
+    include_directories(${CUDA_INCLUDE_DIRS})
+
+    message(STATUS "[CONFIG] (3.) linking directories")
+    link_directories(${CUDA_LIBRARIES})
+
 endif ()
 
 # Enable CUDA language
@@ -30,6 +45,7 @@ set(SOURCES_CPP
 set(SOURCES_CUDA
         src/cuda-impl/cuda_implementation.cuh
         src/cuda-impl/cuda_implementation.cu
+        src/cuda-impl/cuda-status-check.cpp
 )
 
 add_executable(

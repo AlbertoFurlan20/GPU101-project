@@ -7,6 +7,10 @@
 
 #include <iostream>
 #include <vector>
-#include <cuda_runtime.h>
+#include "cuda_runtime.h"
+
+int check_devices_status();
+
+int run_main();
 
 #endif //CUDA_IMPLEMENTATION_CUH

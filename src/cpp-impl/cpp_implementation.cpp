@@ -37,7 +37,7 @@ vector<vector<double>> convolve2D(const vector<vector<double>>& input,
     return output;
 }
 
-int main() {
+int run_main() {
     vector<vector<double>> input = {{1, 2, 3},
                                     {4, 5, 6},
                                     {7, 8, 9}};

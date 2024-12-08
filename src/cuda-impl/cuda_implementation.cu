@@ -43,13 +43,14 @@ void checkCudaErrors(cudaError_t err)
     }
 }
 
-int main(int argc, char **argv)
+int run_main(int argc, char **argv)
 {
     if (argc != 2)
     {
         printf("Please specify matrix dimensions\n");
         return EXIT_FAILURE;
     }
+
     const unsigned dim = atoi(argv[1]);
     const unsigned int width = dim;
     const unsigned int height = dim;

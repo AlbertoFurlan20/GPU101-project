@@ -2,6 +2,7 @@
 
 int main()
 {
-    //TODO implement -- CPP version
+    run_main();
+
     return 0;
 }

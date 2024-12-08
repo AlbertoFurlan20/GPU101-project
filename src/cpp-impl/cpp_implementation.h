@@ -8,4 +8,6 @@
 #include <iostream>
 #include <vector>
 
+int run_main();
+
 #endif //CPP_IMPLEMENTATION_H
