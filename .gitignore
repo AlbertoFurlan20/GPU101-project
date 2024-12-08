@@ -9,4 +9,5 @@
 .idea
 
 # Build files
-/cmake-build-debug---cuda/*
+/cmake-build-debug
+/cmake-build-debug-visual-studio
