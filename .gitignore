@@ -11,3 +11,4 @@
 # Build files
 /cmake-build-debug
 /cmake-build-debug-visual-studio
+/cmake-build-debug---cuda
