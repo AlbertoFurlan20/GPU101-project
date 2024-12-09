@@ -1,21 +1,31 @@
 cmake_minimum_required(VERSION 3.22.1)
 
-project(GPU101_project CUDA CXX)
-
-
-message(STATUS "APPLE: ${APPLE}")
-message(STATUS "UNIX: ${UNIX}")
-message(STATUS "CMAKE_SYSTEM_NAME: ${CMAKE_SYSTEM_NAME}")
-message(STATUS "CMAKE_HOST_SYSTEM_NAME: ${CMAKE_HOST_SYSTEM_NAME}")
-
 # Set CUDA compiler before the project declaration
 if (APPLE)
     message(STATUS "[CONFIG] running configuration for APPLE device")
+    set(CUDA_TOOLKIT_ROOT_DIR /usr/local/cuda-11.7)
     set(CMAKE_CUDA_COMPILER /usr/local/cuda/bin/nvcc)
 
+    project(GPU101_project CUDA CXX)
+    find_package(CUDA REQUIRED)
+
+    include_directories(${CUDA_INCLUDE_DIRS})
+    link_directories(${CUDA_LIBRARIES})
+
 elseif (UNIX)
-    message(STATUS "[CONFIG] running configuration for APPLE device")
+    message(STATUS "[CONFIG] running configuration for APPLE-Unix device")
+    set(CUDA_TOOLKIT_ROOT_DIR /usr/local/cuda-11.7)
     set(CMAKE_CUDA_COMPILER /usr/local/cuda/bin/nvcc)
+
+    message(STATUS "[CONFIG] (1.) finding CUDA")
+    project(GPU101_project CUDA CXX)
+
+    find_package(CUDA REQUIRED)
+    message(STATUS "[CONFIG] (2.) including directories")
+    include_directories(${CUDA_INCLUDE_DIRS})
+
+    message(STATUS "[CONFIG] (3.) linking directories")
+    link_directories(${CUDA_LIBRARIES})
 
 elseif (WIN32)
     message(STATUS "[CONFIG] running configuration for WINDOWS device")
@@ -23,8 +33,8 @@ elseif (WIN32)
 
     # Find CUDA package
     message(STATUS "[CONFIG] (1.) finding CUDA")
+    project(GPU101_project CUDA CXX)
     find_package(CUDA REQUIRED)
-
 
     # Set the include and library directories
     message(STATUS "[CONFIG] (2.) including directories")
@@ -35,6 +45,9 @@ elseif (WIN32)
 
 else ()
     message(STATUS "[CONFIG] No default config needed")
+
+    project(GPU101_project CUDA CXX)
+    find_package(CUDA REQUIRED)
 endif ()
 
 # Enable CUDA language
@@ -50,7 +63,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Setting sources files
 set(SOURCES_CPP
-        src/cpp-impl/cpp_implementation.hope
+        src/cpp-impl/cpp_implementation.h
         src/cpp-impl/cpp_implementation.cpp
 )
 
