@@ -7,6 +7,9 @@ using filter_type = input_type;
 #define FILTER_RADIUS 4
 #define FILTER_SIZE (FILTER_RADIUS * 2 + 1)
 
+// 3D Indexing Macro
+#define IDX_3D(x, y, z, width, height) ((z) * (width) * (height) + (y) * (width) + (x))
+
 template <typename T>
 class DynamicArray
 {
@@ -93,48 +96,99 @@ std::array<int, 124> flatten3DArray(int depth, int rows, int cols, int*** array3
 }
 
 __global__
-void convolution3D(const DynamicArray<float>* input, const DynamicArray<float>* filter, DynamicArray<float>* output,
-                 const unsigned int width, const unsigned int height, const unsigned int depth, const int filterSize)
+void convolution3D(const float* input, const float* filter, float* output,
+                   const int3 inputSize, const int3 filterSize)
 {
-    // indexes:
-    int x = blockIdx.x + blockDim.x + threadIdx.x;
-    int y = blockIdx.y + blockDim.y + threadIdx.y;
-    int z = blockIdx.z + blockDim.z + threadIdx.z;
+    // shared allocation
+    // 1.  shared memory is just this array => each array-tile is the shared memory
+    extern __shared__ float sharedIndexes[];
 
-    int outputCols = height - filterSize + 1;
-    int outputRows = width - filterSize + 1;
-    int outputDepth = depth - filterSize + 1;
+    // 2. calculate the thread index with ref to the global thread in order to access the correct shared memory tile
+    auto shared_index = threadIdx.x + threadIdx.y * blockIdx.x + threadIdx.z * blockIdx.x * blockIdx.y;
 
-    if (x < outputCols && y < outputRows && z < outputDepth)
+    // 3. calculate refs to the "global thread": the position you're in the real thread grid
+    auto x = threadIdx.x + blockIdx.x * blockDim.x;
+    auto y = threadIdx.y + blockIdx.y * blockDim.y;
+    auto z = threadIdx.z + blockIdx.z * blockDim.z;
+
+    // 3.5 perform shared memory load w. bounds checking to ensure
+
+    if (x < inputSize.x && y < inputSize.y && z < inputSize.z)
     {
-        float sum = 0.0f;
+        // this is the allowed access-space
+        // 1. perform the indexing on the input through the 3D macro
+        auto index = IDX_3D(x, y, z, inputSize.x, inputSize.y);
 
-        for (int kd = 0; kd < filterSize; ++kd)
+        // 2. load shared mem. exploiting that index
+        sharedIndexes[shared_index] = input[index];
+    }
+    else
+    {
+        // this is the NOT allowed space => apply padding with 0.0f
+        sharedIndexes[shared_index] = 0.0f;
+    }
+
+    // 4. calculate the kernel radius, i.e.: the distance from the center of the kernel (kernel = filter)
+    //    - user the .../ 2 so to center it
+    //    - why? 'cause for each thread, we consider neighboring elements up to the kernel radius in all directions
+    auto kernelRadiusX = filterSize.x / 2;
+    auto kernelRadiusY = filterSize.y / 2;
+    auto kernelRadiusZ = filterSize.z / 2;
+
+    // 5. add a barrier to ensure ALL threads conclude the setup phase before starting effective computation
+    // [NOTE]: up to now you completed setup
+    __syncthreads();
+
+    // 6. [EXECUTION] now let's adjust the real convolution exec phase
+    float result = 0.0f;
+
+    // you need 3 for loops to slide throughout the kernel
+    // 1° [Z-DIMENSION]
+    // 2° [Y-DIMENSION]
+    // 3° [X-DIMENSION]
+    for (int kz = -kernelRadiusZ; kz <= kernelRadiusZ; ++kz)
+    {
+        for (int ky = -kernelRadiusY; ky <= kernelRadiusY; ++ky)
         {
-            for (int kr = 0; kr < filterSize; ++kr)
+            for (int kx = -kernelRadiusX; kx <= kernelRadiusX; ++kx)
             {
-                for (int kc = 0; kc < filterSize; ++kc)
+                // 1. compute the base-level indexes:
+                int nx = x + kx, ny = y + ky, nz = z + kz;
+
+                // 2. compute the partial result
+                //    - check you're accessing a valid piece of shared mem.
+                if (nx >= 0 && nx < inputSize.x && ny >= 0 && ny < inputSize.y && nz >= 0 && nz < inputSize.y)
                 {
-                    int inputIdx = ((z + kd) * width + (y + kr)) * height + (x + kc);
-                    int kernelIdx = (kd * filterSize + kr) * filterSize + kc;
+                    // 1. calculate kernel-ref index:
+                    int kernelIdx = IDX_3D(kx + kernelRadiusX, ky + kernelRadiusY, kz + kernelRadiusZ,
+                                           filterSize.x, filterSize.y);
 
-                    float a = *input[inputIdx].getData();
-                    float b = *filter[kernelIdx].getData();
+                    // 2. calculate input-ref index
+                    int inputIdx = IDX_3D(nx, ny, nz, inputSize.x, inputSize.y);
 
-                    sum += a * b;
+                    // 3. calculate partial result:
+                    result += sharedIndexes[shared_index] * filter[kernelIdx];
                 }
             }
         }
+    }
 
-        int outputIdx = (z * outputRows + y) * outputCols + x;
-        output[outputIdx].setData(sum);
+    // 7. insert the result into the output
+    if (z < inputSize.z && y < inputSize.y && x < inputSize.x)
+    {
+        // 1. calculate the index:
+        int index = IDX_3D(x, y, z, inputSize.x, inputSize.y);
+
+        // 2. set value
+        output[index] = result;
     }
 }
 
-std::pair<dim3, dim3> setSizeAndGrid(unsigned int dim, unsigned int width, unsigned int height, unsigned int depth)
+std::pair<std::pair<dim3, dim3>, int> setSizeAndGrid(unsigned int dim, unsigned int width, unsigned int height,
+                                                     unsigned int depth)
 {
-    dim3 blockDim(0, 0, 0);
-    dim3 gridSize(0, 0, 0);
+    dim3 blockDim(1, 1, 1);
+    dim3 gridSize(1, 1, 1);
 
     if (dim == 1)
     {
@@ -162,7 +216,9 @@ std::pair<dim3, dim3> setSizeAndGrid(unsigned int dim, unsigned int width, unsig
         gridSize.z = (depth + blockDim.z - 1) / blockDim.z;
     }
 
-    return std::make_pair(blockDim, gridSize);
+    int sharedMemorySize = blockDim.x * blockDim.y * blockDim.z * sizeof(DynamicArray<float>);
+
+    return std::make_pair(std::make_pair(blockDim, gridSize), sharedMemorySize);
 }
 
 int main(int argc, char** argv)
@@ -174,17 +230,9 @@ int main(int argc, char** argv)
     }
 
     const unsigned dim = atoi(argv[1]);
-    const unsigned int width = dim;
-    const unsigned int height = dim;
-    const unsigned int depth = dim;
-
-    // input_type *input = new input_type[width * height];               // Input
-    // filter_type *filter = new filter_type[FILTER_SIZE * FILTER_SIZE]; // Convolution filter
-
-    // Randomly initialize the inputs
-    // [NOTE] - DynamicArray<float>* input = new DynamicArray<float>(width * height);  // this is copy init
-    //        - DynamicArray<float> input(width * height);                             // this is direct init
-    // [NOTE] - use "new" returns a pointer
+    const int width = dim;
+    const int height = dim;
+    const int depth = dim;
 
     auto output_gpu = new DynamicArray<float>(width * height); // Output (GPU)
     auto filter = new DynamicArray<float>(FILTER_SIZE * FILTER_SIZE);
@@ -193,21 +241,26 @@ int main(int argc, char** argv)
     filter->init();
     input->init();
 
-    //TODO kernel invokation
+    assert(output_gpu->size() == input->size());
 
     // 1. memory allocation
-    DynamicArray<float>* d_filter;
-    DynamicArray<float>* d_input;
-    DynamicArray<float>* d_output;
+    float* d_filter;
+    float* d_input;
+    float* d_output;
 
     // 1.1 allocation
-    checkCudaErrors(cudaMalloc(&d_filter, FILTER_SIZE * FILTER_SIZE * sizeof(DynamicArray<float>)));
-    checkCudaErrors(cudaMalloc(&d_input, width * height * sizeof(DynamicArray<float>)));
-    checkCudaErrors(cudaMalloc(&d_output, width * height * sizeof(DynamicArray<float>)));
+    checkCudaErrors(cudaMalloc(&d_filter, filter->size() * sizeof(float)));
+    checkCudaErrors(cudaMalloc(&d_input, input->size() * sizeof(float)));
+    checkCudaErrors(cudaMalloc(&d_output, output_gpu->size() * sizeof(float)));
 
     // 1.2 passing
-    checkCudaErrors(cudaMemcpy(d_input, input, input->size() * sizeof(DynamicArray<float>), cudaMemcpyHostToDevice));
-    checkCudaErrors(cudaMemcpy(d_filter, filter, filter->size() * sizeof(DynamicArray<float>), cudaMemcpyHostToDevice));
+    checkCudaErrors(cudaMemcpy(d_input, input->getData(),
+                               input->size() * sizeof(float),
+                               cudaMemcpyHostToDevice));
+
+    checkCudaErrors(cudaMemcpy(d_filter, input->getData(),
+                               filter->size() * sizeof(float),
+                               cudaMemcpyHostToDevice));
 
     // 2. gridsize & blocksize setup
     // - v1: let's switch between dim == 1 or 2 or 3
@@ -216,7 +269,11 @@ int main(int argc, char** argv)
     // v2 - make it dynamic sizing
 
     // 3. kernel launch
-    convolution3D<<<result.first, result.second>>>(d_input, d_filter, d_output, width, height, depth, FILTER_SIZE);
+    int3 inputSize = {width, height, depth};
+    int3 filterSize = {FILTER_SIZE, FILTER_SIZE, FILTER_SIZE};
+
+    convolution3D<<<result.first.first, result.first.second, result.second>>>(
+        d_input, d_filter, d_output, inputSize, filterSize);
 
     // 4. device synch & mem copy backwards
     checkCudaErrors(cudaDeviceSynchronize());
