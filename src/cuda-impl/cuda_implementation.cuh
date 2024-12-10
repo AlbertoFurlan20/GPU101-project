@@ -11,6 +11,6 @@
 
 int check_devices_status();
 
-int run_main();
+int run_cuda_main();
 
 #endif //CUDA_IMPLEMENTATION_CUH
