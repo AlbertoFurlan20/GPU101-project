@@ -33,7 +33,7 @@ void convolution_cuda(const input_type *input, const input_type *filter, input_t
     }
 }
 
-void checkCudaErrors(cudaError_t err)
+void a_checkCudaErrors(cudaError_t err)
 {
     if (err != cudaSuccess)
     {
@@ -61,23 +61,23 @@ int run_cuda_main()
 
     // Allocate device memory
     input_type *d_input, *d_filter, *d_output;
-    checkCudaErrors(cudaMalloc(&d_input, width * height * sizeof(input_type)));
-    checkCudaErrors(cudaMalloc(&d_filter, FILTER_SIZE * FILTER_SIZE * sizeof(filter_type)));
-    checkCudaErrors(cudaMalloc(&d_output, width * height * sizeof(input_type)));
+    a_checkCudaErrors(cudaMalloc(&d_input, width * height * sizeof(input_type)));
+    a_checkCudaErrors(cudaMalloc(&d_filter, FILTER_SIZE * FILTER_SIZE * sizeof(filter_type)));
+    a_checkCudaErrors(cudaMalloc(&d_output, width * height * sizeof(input_type)));
 
     // Copy data to device
-    checkCudaErrors(cudaMemcpy(d_input, input, width * height * sizeof(input_type), cudaMemcpyHostToDevice));
-    checkCudaErrors(cudaMemcpy(d_filter, filter, FILTER_SIZE * FILTER_SIZE * sizeof(filter_type), cudaMemcpyHostToDevice));
+    a_checkCudaErrors(cudaMemcpy(d_input, input, width * height * sizeof(input_type), cudaMemcpyHostToDevice));
+    a_checkCudaErrors(cudaMemcpy(d_filter, filter, FILTER_SIZE * FILTER_SIZE * sizeof(filter_type), cudaMemcpyHostToDevice));
 
     // Launch CUDA kernel
     dim3 blockDim(16, 16); // 16x16 threads per block
     dim3 gridDim((width + blockDim.x - 1) / blockDim.x, (height + blockDim.y - 1) / blockDim.y); // Calculate grid size
 
     convolution_cuda<<<gridDim, blockDim>>>(d_input, d_filter, d_output, width, height, FILTER_SIZE, FILTER_RADIUS);
-    checkCudaErrors(cudaDeviceSynchronize());
+    a_checkCudaErrors(cudaDeviceSynchronize());
 
     // Copy result back to host
-    checkCudaErrors(cudaMemcpy(output_gpu, d_output, width * height * sizeof(input_type), cudaMemcpyDeviceToHost));
+    a_checkCudaErrors(cudaMemcpy(output_gpu, d_output, width * height * sizeof(input_type), cudaMemcpyDeviceToHost));
 
     // Cleanup
     delete[] input;

@@ -31,14 +31,9 @@ void convolution_cpu(input_type *input, const input_type *filter, input_type *ou
   }
 }
 
-int main(int argc, char **argv)
+int assignmentMain( unsigned int dim)
 {
-  if (argc != 2)
-  {
-    printf("Please specify matrix dimensions\n");
-    return EXIT_FAILURE;
-  }
-  const unsigned dim = atoi(argv[1]);
+
   const unsigned int width = dim;
   const unsigned int height = dim;
 
@@ -56,6 +51,13 @@ int main(int argc, char **argv)
 
   // Call CPU convolution
   convolution_cpu(input, filter, output_cpu, width, height, FILTER_SIZE, FILTER_RADIUS);
+
+  for (int i= 0 ; i < width*height; i++)
+  {
+    std::cout << output_cpu[i]<< ' ';
+  }
+
+  std::cout << std::endl;
 
   // Cleanup and deallocate memory
   delete[] input;

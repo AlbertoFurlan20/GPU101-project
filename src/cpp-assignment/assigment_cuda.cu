@@ -1,5 +1,8 @@
-#include <array>
-#include <iostream>
+#include "../cuda-impl/cuda_implementation.cuh"
+
+// #include <array>
+// #include <cassert>
+// #include <iostream>
 
 using input_type = float;
 using filter_type = input_type;
@@ -9,6 +12,8 @@ using filter_type = input_type;
 
 #define IDX_3D(x, y, z, width, height) ((z) * (width) * (height) + (y) * (width) + (x))
 
+#include <cstdlib> // For rand
+
 template <typename T>
 class DynamicArray
 {
@@ -17,11 +22,13 @@ private:
     size_t size_;
 
 public:
+    // Constructor
     DynamicArray(size_t size) : size_(size)
     {
         data = new T[size];
     }
 
+    // Destructor
     ~DynamicArray()
     {
         delete[] data;
@@ -39,19 +46,31 @@ public:
         other.size_ = 0;
     }
 
+    // Access operators
     T& operator[](size_t index) { return data[index]; }
     const T& operator[](size_t index) const { return data[index]; }
+
+    // Accessors
     size_t size() const { return size_; }
     T* getData() { return data; }
     const T* getData() const { return data; }
-    void setData(T newData) { data = newData; }
 
+    // Initialize data
     void init()
     {
-        for (int i = 0; i < size_ * size_; ++i)
+        for (size_t i = 0; i < size_; ++i)
             data[i] = static_cast<T>(rand()) / RAND_MAX;
     }
 };
+
+template <typename T>
+void printDynamicArray(DynamicArray<T>* array) {
+    for (size_t i = 0; i < array->size(); ++i) {
+        std::cout << array->operator[](i) << " ";
+    }
+    std::cout << std::endl;
+}
+
 
 void checkCudaErrors(cudaError_t err)
 {
@@ -172,15 +191,10 @@ std::pair<dim3, dim3> setSizeAndGrid(unsigned int dim, int3 inputSize)
     return std::make_pair(blockDim, gridSize);
 }
 
-int main(int argc, char** argv)
+int run_assignment_cuda(int dim )
 {
-    if (argc != 2)
-    {
-        printf("Please specify matrix dimensions\n");
-        return EXIT_FAILURE;
-    }
 
-    const unsigned dim = atoi(argv[1]);
+    // const unsigned dim = 1;
     const int width = dim;
     const int height = dim;
     const int depth = dim;
@@ -228,12 +242,14 @@ int main(int argc, char** argv)
 
     // 4. device synch & mem copy backwards
     checkCudaErrors(cudaDeviceSynchronize());
-    checkCudaErrors(cudaMemcpy(output_gpu, d_output, output_gpu->size(), cudaMemcpyDeviceToHost));
+    checkCudaErrors(cudaMemcpy(output_gpu->getData(), d_output, output_gpu->size() * sizeof(float), cudaMemcpyDeviceToHost));
+
+    printDynamicArray(output_gpu);
 
     // Cleanup and deallocate memory
-    delete[] output_gpu;
-    delete[] filter;
-    delete[] input;
+    delete output_gpu;
+    delete filter;
+    delete input;
 
     cudaFree(d_filter);
     cudaFree(d_input);
