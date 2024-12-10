@@ -133,8 +133,8 @@ void convolution3D(const DynamicArray<float>* input, const DynamicArray<float>* 
 
 std::pair<dim3, dim3> setSizeAndGrid(unsigned int dim, unsigned int width, unsigned int height, unsigned int depth)
 {
-    dim3 blockDim(0, 0, 0);
-    dim3 gridSize(0, 0, 0);
+    dim3 blockDim(1, 1, 1);
+    dim3 gridSize(1, 1, 1);
 
     if (dim == 1)
     {
