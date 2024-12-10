@@ -12,6 +12,7 @@ using filter_type = input_type;
 
 #define IDX_3D(x, y, z, width, height) ((z) * (width) * (height) + (y) * (width) + (x))
 
+
 #include <cstdlib> // For rand
 
 template <typename T>
@@ -64,11 +65,14 @@ public:
 };
 
 template <typename T>
-void printDynamicArray(DynamicArray<T>* array) {
-    for (size_t i = 0; i < array->size(); ++i) {
+void printDynamicArray(DynamicArray<T>* array)
+{
+    for (size_t i = 0; i < array->size(); ++i)
+    {
         std::cout << array->operator[](i) << " ";
     }
-    std::cout << std::endl;
+
+    std::cout << std::endl << std::endl;
 }
 
 
@@ -113,14 +117,14 @@ std::array<int, 124> flatten3DArray(int depth, int rows, int cols, int*** array3
     return flatArray;
 }
 
-__global__
-void convolution3D(const float* input, const float* filter, float* output, int3 inputSize, int3 filterSize)
+__global__ void convolution3D(const float* input, const float* filter, float* output, int3 inputSize, int3 filterSize)
 {
-    // 1. calculate thread-grid ref indexes
+    // Calculate thread indices
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
     int z = blockIdx.z * blockDim.z + threadIdx.z;
 
+    // Calculate kernel radius
     int kernelRadiusX = filterSize.x / 2;
     int kernelRadiusY = filterSize.y / 2;
     int kernelRadiusZ = filterSize.z / 2;
@@ -135,14 +139,15 @@ void convolution3D(const float* input, const float* filter, float* output, int3 
             {
                 for (int kx = 0; kx < filterSize.x; ++kx)
                 {
-                    // 1. compute base-level indexes
-                    int nx = x + kx, ny = y + ky, nz = z + kz;
+                    // Compute input indices
+                    int nx = x + kx - kernelRadiusX;
+                    int ny = y + ky - kernelRadiusY;
+                    int nz = z + kz - kernelRadiusZ;
 
+                    // Boundary check
                     if (nx >= 0 && nx < inputSize.x && ny >= 0 && ny < inputSize.y && nz >= 0 && nz < inputSize.z)
                     {
-                        int kernel_idx = IDX_3D(kx + kernelRadiusX, ky + kernelRadiusY, kz, + kernelRadiusZ,
-                                                filterSize.x, filterSize.y);
-
+                        int kernel_idx = IDX_3D(kx, ky, kz, filterSize.x, filterSize.y);
                         int input_idx = IDX_3D(nx, ny, nz, inputSize.x, inputSize.y);
 
                         result += input[input_idx] * filter[kernel_idx];
@@ -151,11 +156,59 @@ void convolution3D(const float* input, const float* filter, float* output, int3 
             }
         }
 
+        // Write result
         int outputIdx = IDX_3D(x, y, z, inputSize.x, inputSize.y);
-
         output[outputIdx] = result;
     }
 }
+
+__global__ void convolution3D_method2(const float* input, const float* filter, float* output, int3 inputSize, int3 filterSize)
+{
+    // 1. calculate thread-grid ref indexes
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int z = blockIdx.z * blockDim.z + threadIdx.z;
+
+    int kernelRadiusX = filterSize.x / 2;
+    int kernelRadiusY = filterSize.y / 2;
+    int kernelRadiusZ = filterSize.z / 2;
+
+    // printf("Thread (%d, %d, %d)\n", x, y, z);  // Debugging thread indices
+
+    if (x < inputSize.x && y < inputSize.y && z < inputSize.z)
+    {
+        float result = 0.0f;
+
+        for (int kz = 0; kz < filterSize.z; ++kz)
+        {
+            for (int ky = 0; ky < filterSize.y; ++ky)
+            {
+                for (int kx = 0; kx < filterSize.x; ++kx)
+                {
+                    // 1. compute base-level indexes
+                    int nx = x + kx - kernelRadiusX;
+                    int ny = y + ky - kernelRadiusY;
+                    int nz = z + kz - kernelRadiusZ;
+
+                    // Debugging: print input/output index calculations
+                    int input_idx = IDX_3D(nx, ny, nz, inputSize.x, inputSize.y);
+                    int kernel_idx = IDX_3D(kx, ky, kz, filterSize.x, filterSize.y);
+
+
+                    if (nx >= 0 && nx < inputSize.x && ny >= 0 && ny < inputSize.y && nz >= 0 && nz < inputSize.z)
+                    {
+                        // printf("nx=%d, ny=%d, nz=%d, input_idx=%d, kernel_idx=%d\n", nx, ny, nz, input_idx, kernel_idx);
+                        result += input[input_idx] * filter[kernel_idx];
+                    }
+                }
+            }
+        }
+
+        int outputIdx = IDX_3D(x, y, z, inputSize.x, inputSize.y);
+        output[outputIdx] = result;
+    }
+}
+
 
 std::pair<dim3, dim3> setSizeAndGrid(unsigned int dim, int3 inputSize)
 {
@@ -191,9 +244,8 @@ std::pair<dim3, dim3> setSizeAndGrid(unsigned int dim, int3 inputSize)
     return std::make_pair(blockDim, gridSize);
 }
 
-int run_assignment_cuda(int dim )
+int run_assignment_cuda(int dim)
 {
-
     // const unsigned dim = 1;
     const int width = dim;
     const int height = dim;
@@ -213,6 +265,13 @@ int run_assignment_cuda(int dim )
 
     filter->init();
     input->init();
+
+    std::cout << "[INPUT]\n";
+    printDynamicArray(input);
+    std::cout << std::endl;
+    std::cout << "[FILTER]\n";
+    printDynamicArray(filter);
+    std::cout << std::endl;
 
     assert(output_gpu->size() == input->size());
 
@@ -239,11 +298,14 @@ int run_assignment_cuda(int dim )
 
     // 3. kernel launch
     convolution3D<<<fst, snd>>>(d_input, d_filter, d_output, inputSize, filterSize);
+    // convolution3D_method2<<<fst, snd>>>(d_input, d_filter, d_output, inputSize, filterSize);
 
     // 4. device synch & mem copy backwards
     checkCudaErrors(cudaDeviceSynchronize());
-    checkCudaErrors(cudaMemcpy(output_gpu->getData(), d_output, output_gpu->size() * sizeof(float), cudaMemcpyDeviceToHost));
+    checkCudaErrors(cudaMemcpy(output_gpu->getData(), d_output, output_gpu->size() * sizeof(float),
+                               cudaMemcpyDeviceToHost));
 
+    std::cout << "[OUTPUT]\n";
     printDynamicArray(output_gpu);
 
     // Cleanup and deallocate memory

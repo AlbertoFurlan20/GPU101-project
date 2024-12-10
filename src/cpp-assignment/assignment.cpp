@@ -31,6 +31,13 @@ void convolution_cpu(input_type *input, const input_type *filter, input_type *ou
   }
 }
 
+void printDynamicArray(input_type* array, int dim) {
+  for (size_t i = 0; i < dim; ++i) {
+    std::cout << array[i] << " ";
+  }
+  std::cout << std::endl;
+}
+
 int assignmentMain( unsigned int dim)
 {
 
@@ -49,15 +56,25 @@ int assignmentMain( unsigned int dim)
   for (int i = 0; i < width * height; ++i)
     input[i] = static_cast<input_type>(rand()) / RAND_MAX; // Random value between 0 and 1
 
+  std::cout<<"[INPUT]\n";
+  printDynamicArray(input, width*height);
+  std::cout << std::endl;
+
+  std::cout<<"[FILTER]\n";
+  printDynamicArray(filter,  FILTER_SIZE * FILTER_SIZE);
+  std::cout << std::endl;
+
+
   // Call CPU convolution
   convolution_cpu(input, filter, output_cpu, width, height, FILTER_SIZE, FILTER_RADIUS);
 
+  std::cout << "[OUTPUT]\n";
   for (int i= 0 ; i < width*height; i++)
   {
     std::cout << output_cpu[i]<< ' ';
   }
 
-  std::cout << std::endl;
+  std::cout << std::endl << std::endl;
 
   // Cleanup and deallocate memory
   delete[] input;

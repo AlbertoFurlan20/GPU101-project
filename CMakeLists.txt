@@ -34,7 +34,7 @@ elseif (WIN32)
     # Find CUDA package
     message(STATUS "[CONFIG] (1.) finding CUDA")
     project(GPU101_project CUDA CXX)
-    # find_package(CUDA REQUIRED)
+    find_package(CUDA REQUIRED)
 
     # Set the include and library directories
     message(STATUS "[CONFIG] (2.) including directories")

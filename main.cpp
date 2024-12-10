@@ -6,8 +6,8 @@ int main()
     // run_main();
 
     assignmentMain(1);
-    assignmentMain(2);
-    assignmentMain(3);
+    // assignmentMain(2);
+    // assignmentMain(3);
 
     return 0;
 }
