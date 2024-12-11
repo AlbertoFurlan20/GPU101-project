@@ -9,78 +9,90 @@ using filter_type = input_type;
 #define FILTER_RADIUS 4
 #define FILTER_SIZE (FILTER_RADIUS * 2 + 1)
 
-void convolution_cpu(input_type *input, const input_type *filter, input_type *output, const int width, const int height, const int filter_size, const int filter_radius)
+void convolution_cpu(input_type* input, const input_type* filter, input_type* output, const int width, const int height,
+                     const int filter_size, const int filter_radius)
 {
-  for (int outRow = 0; outRow < width; outRow++)
-  {
-    for (int outCol = 0; outCol < height; outCol++)
+    for (int outRow = 0; outRow < width; outRow++)
     {
-      input_type value{0.0f};
-      for (int row = 0; row < filter_size; row++)
-        for (int col = 0; col < filter_size; col++)
+        for (int outCol = 0; outCol < height; outCol++)
         {
-          int inRow = outRow - filter_radius + row;
-          int inCol = outCol - filter_radius + col;
-          if (inRow >= 0 && inRow < height && inCol >= 0 && inCol < width)
-          {
-            value += filter[row * filter_size + col] * input[inRow * width + inCol];
-          }
+            input_type value{0.0f};
+            for (int row = 0; row < filter_size; row++)
+                for (int col = 0; col < filter_size; col++)
+                {
+                    int inRow = outRow - filter_radius + row;
+                    int inCol = outCol - filter_radius + col;
+                    if (inRow >= 0 && inRow < height && inCol >= 0 && inCol < width)
+                    {
+                        value += filter[row * filter_size + col] * input[inRow * width + inCol];
+                    }
+                }
+            output[outRow * width + outCol] = value;
         }
-      output[outRow * width + outCol] = value;
     }
-  }
 }
 
-void printDynamicArray(input_type* array, int dim) {
-  for (size_t i = 0; i < dim; ++i) {
-    std::cout << array[i] << " ";
-  }
-  std::cout << std::endl;
-}
-
-int assignmentMain( unsigned int dim)
+int main(int argc, char** argv)
 {
+    if (argc < 2)
+    {
+        printf("Please specify matrix dimensions\n");
+        return EXIT_FAILURE;
+    }
+    unsigned convolutionType;
+    const unsigned dim = atoi(argv[1]);
 
-  const unsigned int width = dim;
-  const unsigned int height = dim;
+    std::cout << "dim: " << dim << "\n";
+    if (argc > 2)
+    {
+        convolutionType = atoi(argv[2]);
+        std::cout << "convolution type: " << convolutionType << "D\n";
+    }
+    else
+    {
+        convolutionType = 2;
+        std::cout << "convolution type: " << convolutionType << "D (defaulted)\n";
+    }
 
-  input_type *input = new input_type[width * height];               // Input
-  filter_type *filter = new filter_type[FILTER_SIZE * FILTER_SIZE]; // Convolution filter
-  input_type *output_cpu = new input_type[width * height];          // Output (CPU)
-  input_type *output_gpu = new input_type[width * height];          // Output (GPU)
+    if (convolutionType < 1 || convolutionType > 3)
+    {
+        std::cout << "\n[ERROR]:: supported convolution: 2D\n";
+        return EXIT_FAILURE;
+    }
 
-  // Randomly initialize the inputs
-  for (int i = 0; i < FILTER_SIZE * FILTER_SIZE; i++)
-    filter[i] = static_cast<filter_type>(rand()) / RAND_MAX;
+    const unsigned int width = dim;
+    const unsigned int height = dim;
 
-  for (int i = 0; i < width * height; ++i)
-    input[i] = static_cast<input_type>(rand()) / RAND_MAX; // Random value between 0 and 1
+    input_type* input = new input_type[width * height]; // Input
+    filter_type* filter = new filter_type[FILTER_SIZE * FILTER_SIZE]; // Convolution filter
+    input_type* output_cpu = new input_type[width * height]; // Output (CPU)
+    input_type* output_gpu = new input_type[width * height]; // Output (GPU)
 
-  std::cout<<"[INPUT]\n";
-  printDynamicArray(input, width*height);
-  std::cout << std::endl;
+    // Randomly initialize the inputs
+    for (int i = 0; i < FILTER_SIZE * FILTER_SIZE; i++)
+        filter[i] = static_cast<filter_type>(rand()) / RAND_MAX;
 
-  std::cout<<"[FILTER]\n";
-  printDynamicArray(filter,  FILTER_SIZE * FILTER_SIZE);
-  std::cout << std::endl;
+    for (int i = 0; i < width * height; ++i)
+        input[i] = static_cast<input_type>(rand()) / RAND_MAX; // Random value between 0 and 1
 
+    // Call CPU convolution
+    convolution_cpu(input, filter, output_cpu, width, height, FILTER_SIZE, FILTER_RADIUS);
 
-  // Call CPU convolution
-  convolution_cpu(input, filter, output_cpu, width, height, FILTER_SIZE, FILTER_RADIUS);
+    int count = 1;
+    std::cout << "\n[OUTPUT]\n";
+    for (int i = 0; i < width * height; i++)
+    {
+        std::cout << output_cpu[i] << " ";
 
-  std::cout << "[OUTPUT]\n";
-  for (int i= 0 ; i < width*height; i++)
-  {
-    std::cout << output_cpu[i]<< ' ';
-  }
+        if (count % 3 == 0) std::cout << "\n";
+        count++;
+    }
 
-  std::cout << std::endl << std::endl;
+    // Cleanup and deallocate memory
+    delete[] input;
+    delete[] filter;
+    delete[] output_cpu;
+    delete[] output_gpu;
 
-  // Cleanup and deallocate memory
-  delete[] input;
-  delete[] filter;
-  delete[] output_cpu;
-  delete[] output_gpu;
-
-  return EXIT_SUCCESS;
+    return EXIT_SUCCESS;
 }
