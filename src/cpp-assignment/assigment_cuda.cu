@@ -243,10 +243,9 @@ std::pair<dim3, dim3> setSizeAndGrid(unsigned int dim, int3 inputSize)
 
 int run_assignment_cuda(int dim)
 {
-    // const unsigned dim = 1;
-    const int width = dim;
-    const int height = dim;
-    const int depth = dim;
+    int width = dim;
+    int height = dim == 2 ? dim : 1;
+    int depth = dim == 3 ? dim : 1;
 
     // input_type *input = new input_type[width * height];               // Input
     // filter_type *filter = new filter_type[FILTER_SIZE * FILTER_SIZE]; // Convolution filter
@@ -256,9 +255,11 @@ int run_assignment_cuda(int dim)
     //        - DynamicArray<float> input(width * height);                             // this is direct init
     // [NOTE] - use "new" returns a pointer
 
-    auto output_gpu = new DynamicArray<float>(width * height); // Output (GPU)
+    int raw_size = width * height * depth;
+
+    auto input = new DynamicArray<float>(raw_size);
+    auto output_gpu = new DynamicArray<float>(raw_size); // Output (GPU)
     auto filter = new DynamicArray<float>(FILTER_SIZE * FILTER_SIZE);
-    auto input = new DynamicArray<float>(width * height);
 
     filter->init();
     input->init();
@@ -266,11 +267,14 @@ int run_assignment_cuda(int dim)
     std::cout << "[INPUT]\n";
     printDynamicArray(input);
     std::cout << std::endl;
+
     std::cout << "[FILTER]\n";
     printDynamicArray(filter);
     std::cout << std::endl;
 
     assert(output_gpu->size() == input->size());
+
+    // sizes checks
 
     // 1. memory allocation
     float* d_filter;
