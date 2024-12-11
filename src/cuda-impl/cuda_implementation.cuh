@@ -11,6 +11,7 @@
 #include <array>
 #include <cassert>
 #include <iostream>
+#include <cstdlib>
 
 int check_devices_status();
 

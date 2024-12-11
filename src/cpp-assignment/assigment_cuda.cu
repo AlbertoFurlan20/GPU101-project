@@ -1,9 +1,5 @@
 #include "../cuda-impl/cuda_implementation.cuh"
 
-// #include <array>
-// #include <cassert>
-// #include <iostream>
-
 using input_type = float;
 using filter_type = input_type;
 
@@ -11,9 +7,6 @@ using filter_type = input_type;
 #define FILTER_SIZE (FILTER_RADIUS * 2 + 1)
 
 #define IDX_3D(x, y, z, width, height) ((z) * (width) * (height) + (y) * (width) + (x))
-
-
-#include <cstdlib> // For rand
 
 template <typename T>
 class DynamicArray
@@ -117,52 +110,56 @@ std::array<int, 124> flatten3DArray(int depth, int rows, int cols, int*** array3
     return flatArray;
 }
 
-__global__ void convolution3D(const float* input, const float* filter, float* output, int3 inputSize, int3 filterSize)
+__global__ void convolution3D(const float* input, const float* kernel, float* output,
+                              int3 inputSize, int3 kernelSize)
 {
-    // Calculate thread indices
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
     int z = blockIdx.z * blockDim.z + threadIdx.z;
 
-    // Calculate kernel radius
-    int kernelRadiusX = filterSize.x / 2;
-    int kernelRadiusY = filterSize.y / 2;
-    int kernelRadiusZ = filterSize.z / 2;
+    int radiusX = kernelSize.x / 2;
+    int radiusY = kernelSize.y / 2;
+    int radiusZ = kernelSize.z / 2;
 
-    if (x < inputSize.x && y < inputSize.y && z < inputSize.z)
+    int outX = max(1, inputSize.x - kernelSize.x + 1);
+    int outY = max(1, inputSize.y - kernelSize.y + 1);
+    int outZ = max(1, inputSize.z - kernelSize.z + 1);
+
+    if (x < outX && y < outY && z < outZ)
     {
         float result = 0.0f;
 
-        for (int kz = 0; kz < filterSize.z; ++kz)
+        for (int dkx = -radiusX; dkx <= radiusX; ++dkx)
         {
-            for (int ky = 0; ky < filterSize.y; ++ky)
+            for (int dky = -radiusY; dky <= radiusY; ++dky)
             {
-                for (int kx = 0; kx < filterSize.x; ++kx)
+                for (int dkz = -radiusZ; dkz <= radiusZ; ++dkz)
                 {
-                    // Compute input indices
-                    int nx = x + kx - kernelRadiusX;
-                    int ny = y + ky - kernelRadiusY;
-                    int nz = z + kz - kernelRadiusZ;
+                    int ix = x + dkx + radiusX;
+                    int iy = y + dky + radiusY;
+                    int iz = z + dkz + radiusZ;
 
-                    // Boundary check
-                    if (nx >= 0 && nx < inputSize.x && ny >= 0 && ny < inputSize.y && nz >= 0 && nz < inputSize.z)
+                    // Handle boundary conditions
+                    if (ix >= 0 && ix < inputSize.x && iy >= 0 && iy < inputSize.y && iz >= 0 && iz < inputSize.z)
                     {
-                        int kernel_idx = IDX_3D(kx, ky, kz, filterSize.x, filterSize.y);
-                        int input_idx = IDX_3D(nx, ny, nz, inputSize.x, inputSize.y);
+                        // #define IDX_3D(x, y, z, width, height) ((z) * (width) * (height) + (y) * (width) + (x))
+                        int kernelIndex = (dkz + radiusZ) * kernelSize.y * kernelSize.x +
+                            (dky + radiusY) * kernelSize.x
+                            + (dkx + radiusX);
+                        int inputIndex = iz * inputSize.x * inputSize.y + iy * inputSize.x + ix;
 
-                        result += input[input_idx] * filter[kernel_idx];
+                        result += input[inputIndex] * kernel[kernelIndex];
                     }
                 }
             }
         }
 
-        // Write result
-        int outputIdx = IDX_3D(x, y, z, inputSize.x, inputSize.y);
-        output[outputIdx] = result;
+        output[z * outX * outY + y * outX + x] = result;
     }
 }
 
-__global__ void convolution3D_method2(const float* input, const float* filter, float* output, int3 inputSize, int3 filterSize)
+__global__ void convolution3D_method2(const float* input, const float* filter, float* output, int3 inputSize,
+                                      int3 filterSize)
 {
     // 1. calculate thread-grid ref indexes
     int x = blockIdx.x * blockDim.x + threadIdx.x;
