@@ -1,56 +1,101 @@
-#include "cpp_implementation.h"
+#include <iostream>
+#include <cmath>
+#include <cstdlib>
+#include <cassert>
 
-using namespace std;
+using input_type = float;
+using filter_type = input_type;
 
-vector<vector<double>> convolve2D(const vector<vector<double>>& input,
-                                  const vector<vector<double>>& kernel,
-                                  int stride = 1, int padding = 0) {
-    int inputRows = input.size();
-    int inputCols = input[0].size();
-    int kernelRows = kernel.size();
-    int kernelCols = kernel[0].size();
+#define FILTER_RADIUS 4
+#define FILTER_SIZE (FILTER_RADIUS * 2 + 1)
 
-    int outputRows = (inputRows + 2 * padding - kernelRows) / stride + 1;
-    int outputCols = (inputCols + 2 * padding - kernelCols) / stride + 1;
-
-    vector<vector<double>> paddedInput(inputRows + 2 * padding,
-                                       vector<double>(inputCols + 2 * padding, 0));
-    vector<vector<double>> output(outputRows, vector<double>(outputCols, 0));
-
-    // Add padding to input
-    for (int i = 0; i < inputRows; ++i)
-        for (int j = 0; j < inputCols; ++j)
-            paddedInput[i + padding][j + padding] = input[i][j];
-
-    // Convolution
-    for (int i = 0; i < outputRows; ++i) {
-        for (int j = 0; j < outputCols; ++j) {
-            double sum = 0.0;
-            for (int m = 0; m < kernelRows; ++m) {
-                for (int n = 0; n < kernelCols; ++n) {
-                    sum += kernel[m][n] * paddedInput[i * stride + m][j * stride + n];
+void convolution_cpu(input_type* input, const input_type* filter, input_type* output, const int width, const int height,
+                     const int filter_size, const int filter_radius)
+{
+    for (int outRow = 0; outRow < width; outRow++)
+    {
+        for (int outCol = 0; outCol < height; outCol++)
+        {
+            input_type value{0.0f};
+            for (int row = 0; row < filter_size; row++)
+                for (int col = 0; col < filter_size; col++)
+                {
+                    int inRow = outRow - filter_radius + row;
+                    int inCol = outCol - filter_radius + col;
+                    if (inRow >= 0 && inRow < height && inCol >= 0 && inCol < width)
+                    {
+                        value += filter[row * filter_size + col] * input[inRow * width + inCol];
+                    }
                 }
-            }
-            output[i][j] = sum;
+            output[outRow * width + outCol] = value;
         }
     }
-    return output;
 }
 
-int run_main() {
-    vector<vector<double>> input = {{1, 2, 3},
-                                    {4, 5, 6},
-                                    {7, 8, 9}};
-    vector<vector<double>> kernel = {{-1, -2, -1},
-                                      {0,  0,  0},
-                                      {1,  2,  1}};
-    vector<vector<double>> output = convolve2D(input, kernel);
-
-    for (const auto& row : output) {
-        for (double val : row) {
-            cout << val << " ";
-        }
-        cout << endl;
+int assignment_main(int argc, char** argv)
+{
+    if (argc < 2)
+    {
+        printf("Please specify matrix dimensions\n");
+        return EXIT_FAILURE;
     }
-    return 0;
+    unsigned convolutionType;
+    const unsigned dim = atoi(argv[1]);
+
+    std::cout << "dim: " << dim << "\n";
+    if (argc > 2)
+    {
+        convolutionType = atoi(argv[2]);
+        std::cout << "convolution type: " << convolutionType << "D\n";
+    }
+    else
+    {
+        convolutionType = 2;
+        std::cout << "convolution type: " << convolutionType << "D (defaulted)\n";
+    }
+
+    if (convolutionType < 1 || convolutionType > 3)
+    {
+        std::cout << "\n[ERROR]:: supported convolution: 2D\n";
+        return EXIT_FAILURE;
+    }
+
+    const unsigned int width = dim;
+    const unsigned int height = dim;
+
+    assert(convolutionType == 1 || convolutionType == 2 || convolutionType == 3);
+    std::cout << "supported convolution: 2D\n";
+
+    input_type* input = new input_type[width * height]; // Input
+    filter_type* filter = new filter_type[FILTER_SIZE * FILTER_SIZE]; // Convolution filter
+    input_type* output_cpu = new input_type[width * height]; // Output (CPU)
+    input_type* output_gpu = new input_type[width * height]; // Output (GPU)
+
+    // Randomly initialize the inputs
+    for (int i = 0; i < FILTER_SIZE * FILTER_SIZE; i++)
+        filter[i] = static_cast<filter_type>(rand()) / RAND_MAX;
+
+    for (int i = 0; i < width * height; ++i)
+        input[i] = static_cast<input_type>(rand()) / RAND_MAX; // Random value between 0 and 1
+
+    // Call CPU convolution
+    convolution_cpu(input, filter, output_cpu, width, height, FILTER_SIZE, FILTER_RADIUS);
+
+    int count = 1;
+    std::cout << "\n[OUTPUT]\n";
+    for (int i = 0; i < width * height; i++)
+    {
+        std::cout << output_cpu[i] << " ";
+
+        if (count % 3 == 0) std::cout << "\n";
+        count++;
+    }
+
+    // Cleanup and deallocate memory
+    delete[] input;
+    delete[] filter;
+    delete[] output_cpu;
+    delete[] output_gpu;
+
+    return EXIT_SUCCESS;
 }

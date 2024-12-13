@@ -11,11 +11,12 @@
 #include <array>
 #include <cassert>
 #include <iostream>
+#include <cstdlib>
 
 int check_devices_status();
 
 int run_cuda_main();
 
-int run_assignment_cuda(int);
+int run_assignment_cuda(int, char**);
 
 #endif //CUDA_IMPLEMENTATION_CUH
