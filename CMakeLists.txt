@@ -71,10 +71,6 @@ set(SOURCES_CUDA
         src/cuda-impl/cuda_implementation.cuh
         src/cuda-impl/cuda_implementation.cu
         src/cuda-impl/cuda-status-check.cpp
-        src/cpp-assignment/assignment_cuda_fix.cu
-        src/cpp-assignment/assignment_cuda_fix.cuh
-        src/cpp-assignment/assigment_cuda-v0-fix.cu
-        src/cpp-assignment/assigment_cuda.cu
 )
 
 add_executable(
