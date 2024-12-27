@@ -40,7 +40,7 @@ elseif (WIN32)
     message(STATUS "[CONFIG] (2.) including directories")
     include_directories(${CUDA_INCLUDE_DIRS})
 
-    message(STATUS "[CONFIG] (3.) linking directories")
+    message(STATUS "[CONFIG] (3.) linking directories\n")
     link_directories(${CUDA_LIBRARIES})
 
 else ()
