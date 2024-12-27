@@ -72,7 +72,6 @@ void printDynamicArray(DynamicArray<T>* array)
     std::cout << std::endl << std::endl;
 }
 
-
 void checkCudaErrors(cudaError_t err)
 {
     if (err != cudaSuccess)
@@ -80,38 +79,6 @@ void checkCudaErrors(cudaError_t err)
         std::cerr << "CUDA Error: " << cudaGetErrorString(err) << std::endl;
         exit(EXIT_FAILURE);
     }
-}
-
-std::array<int, 124> flatten2DArray(int rows, int cols, int** array2D)
-{
-    std::array<int, 124> flatArray = {};
-    for (int i = 0; i < rows; ++i)
-    {
-        for (int j = 0; j < cols; ++j)
-        {
-            flatArray[i * cols + j] = array2D[i][j];
-        }
-    }
-
-    return flatArray;
-}
-
-std::array<int, 124> flatten3DArray(int depth, int rows, int cols, int*** array3D)
-{
-    std::array<int, 124> flatArray = {};
-
-    for (int d = 0; d < depth; ++d)
-    {
-        for (int i = 0; i < rows; ++i)
-        {
-            for (int j = 0; j < cols; ++j)
-            {
-                flatArray[(d * rows + i) * cols + j] = array3D[d][i][j];
-            }
-        }
-    }
-
-    return flatArray;
 }
 
 __global__ void convolution2D(const float* input, const float* kernel, float* output,
@@ -172,8 +139,6 @@ __global__ void convolution2D(const float* input, const float* kernel, float* ou
         output[IDX_2D(x, y, width)] = partialResult;
     }
 }
-
-
 
 std::pair<dim3, dim3> setSizeAndGrid(int convolutionType, std::pair<int, int> inputParams)
 {
@@ -278,7 +243,7 @@ int run_assignment_cuda(int argc, char** argv)
     // 2. gridsize & blocksize setup
     auto inputParams = std::make_pair(width, height);
 
-    auto [gridSize, blockDim] = setSizeAndGrid(dim, inputParams);
+    auto [gridSize, blockDim] = setSizeAndGrid(convolutionType, inputParams);
     auto filterParams = std::make_pair(FILTER_SIZE, FILTER_RADIUS);
 
     // 3. kernel launch

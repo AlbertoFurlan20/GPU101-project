@@ -1,5 +1,4 @@
 #include "src/cpp-impl/cpp_implementation.h"
-#include "src/cpp-assignment/assignment.cpp"
 
 int main(int argc, char** argv)
 {
