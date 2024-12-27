@@ -1,4 +1,5 @@
 #include "src/cuda-impl/cuda_implementation.cuh"
+#include "src/cpp-assignment/assignment_cuda_fix.cuh"
 
 int main(int argc, char** argv)
 {

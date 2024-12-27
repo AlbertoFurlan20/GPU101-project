@@ -230,7 +230,7 @@ int run_assignment_cuda(int argc, char** argv)
     std::cout<<"dim: "<< dim<<"\n";
     if (argc > 2)
     {
-        convolutionType = atoi(argv[2]);   
+        convolutionType = atoi(argv[2]);
         std::cout << "convolution type: " << convolutionType << "D";
     }else
     {
