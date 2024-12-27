@@ -8,6 +8,6 @@
 #include <iostream>
 #include <vector>
 
-int run_main();
+int assignment_main(int argc, char** argv);
 
 #endif //CPP_IMPLEMENTATION_H

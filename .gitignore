@@ -12,3 +12,7 @@
 /cmake-build-debug
 /cmake-build-debug-visual-studio
 /cmake-build-debug---cuda
+
+# added to avoid dumb files creation
+._*
+.DS_Store
