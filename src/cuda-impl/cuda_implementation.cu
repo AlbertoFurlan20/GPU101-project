@@ -197,7 +197,7 @@ int run_assignment_cuda(int argc, char** argv)
     {
         convolutionType = atoi(argv[2]);
         std::cout << "convolution type: " << convolutionType << "D";
-    }else
+    } else
     {
         convolutionType = 2;
         std::cout << "convolution type: " << convolutionType << "D (defaulted)";
@@ -207,8 +207,8 @@ int run_assignment_cuda(int argc, char** argv)
 
     if (convolutionType < 1 || convolutionType > 3)
     {
-      std::cout << "\n[ERROR]:: supported convolution: 2D\n";
-      return EXIT_FAILURE;
+        std::cout << "\n[ERROR]:: supported convolution: 2D\n";
+        return EXIT_FAILURE;
     }
     // up to 3D convolution is supported
     assert(convolutionType == 1 || convolutionType == 2 || convolutionType == 3);
@@ -246,16 +246,33 @@ int run_assignment_cuda(int argc, char** argv)
     auto [gridSize, blockDim] = setSizeAndGrid(convolutionType, inputParams);
     auto filterParams = std::make_pair(FILTER_SIZE, FILTER_RADIUS);
 
+    // Timing setup
+    cudaEvent_t start, stop;
+    checkCudaErrors(cudaEventCreate(&start));
+    checkCudaErrors(cudaEventCreate(&stop));
+
+    // Record the start time
+    checkCudaErrors(cudaEventRecord(start));
+
     // 3. kernel launch
     int sharedMemSize = (blockDim.x + 2 * FILTER_RADIUS) * (blockDim.y + 2 * FILTER_RADIUS) * sizeof(float);
     convolution2D<<<gridSize, blockDim, sharedMemSize>>>(d_input, d_filter, d_output, inputParams, filterParams);
 
-    // convolution2D<<<gridSize, blockDim>>>(d_input, d_filter, d_output, inputParams, filterParams);
-
     // 4. device synch & mem copy backwards
     checkCudaErrors(cudaDeviceSynchronize());
-    checkCudaErrors(cudaMemcpy(output_gpu->getData(), d_output, output_gpu->size() * sizeof(float),
-                               cudaMemcpyDeviceToHost));
+
+    // Record the stop time
+    checkCudaErrors(cudaEventRecord(stop));
+    checkCudaErrors(cudaEventSynchronize(stop));
+
+    // Calculate and display elapsed time
+    float milliseconds = 0;
+    checkCudaErrors(cudaEventElapsedTime(&milliseconds, start, stop));
+
+    std::cout << "\nKernel execution time: " << milliseconds << " ms\n";
+
+    // Copy result back to host
+    checkCudaErrors(cudaMemcpy(output_gpu->getData(), d_output, output_gpu->size() * sizeof(float), cudaMemcpyDeviceToHost));
 
     std::cout << "[OUTPUT]\n";
     printDynamicArray(output_gpu);
@@ -268,6 +285,10 @@ int run_assignment_cuda(int argc, char** argv)
     cudaFree(d_filter);
     cudaFree(d_input);
     cudaFree(d_output);
+
+    // Cleanup timing events
+    checkCudaErrors(cudaEventDestroy(start));
+    checkCudaErrors(cudaEventDestroy(stop));
 
     return EXIT_SUCCESS;
 }
