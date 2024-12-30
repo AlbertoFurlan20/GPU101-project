@@ -66,6 +66,7 @@ void printDynamicArray(DynamicArray<T>* array)
         std::cout << array->operator[](i) << " ";
 
         if (count % 3 == 0) std::cout << "\n";
+        if (count == 9) {std::cout << "\n clamped output\n"; break;}
         count++;
     }
 
@@ -200,7 +201,7 @@ std::pair<dim3, dim3> setSizeAndGrid(int convolutionType, std::pair<int, int> in
     return std::make_pair(gridSize, blockDim);
 }
 
-int run_assignment_cuda(int argc, char** argv)
+int main(int argc, char** argv)
 {
     if (argc < 2)
     {
@@ -274,6 +275,7 @@ int run_assignment_cuda(int argc, char** argv)
     checkCudaErrors(cudaEventRecord(start));
 
     // 3. kernel launch
+
     int sharedMemSize = (blockDim.x + 2 * FILTER_RADIUS) * (blockDim.y + 2 * FILTER_RADIUS) * sizeof(float);
     convolution2D<<<gridSize, blockDim, sharedMemSize>>>(d_input, d_filter, d_output, inputParams, filterParams);
 
