@@ -16,14 +16,27 @@ int check_devices_status() {
 
     std::cout << "CUDA-enabled device count: " << deviceCount << std::endl;
 
-    for (int i = 0; i < deviceCount; ++i) {
+    for (int deviceId = 0; deviceId < deviceCount; ++deviceId) {
         cudaDeviceProp deviceProp;
-        cudaGetDeviceProperties(&deviceProp, i);
+        cudaGetDeviceProperties(&deviceProp, deviceId);
 
-        std::cout << "Device " << i << ": " << deviceProp.name << std::endl;
-        std::cout << "  Compute capability: " << deviceProp.major << "." << deviceProp.minor << std::endl;
-        std::cout << "  Total memory: " << deviceProp.totalGlobalMem / (1024 * 1024) << " MB" << std::endl;
-        std::cout << "  Multiprocessors: " << deviceProp.multiProcessorCount << std::endl;
+        std::cout << "Device " << deviceId << " properties:\n";
+        std::cout << "  Name: " << deviceProp.name << "\n";
+        std::cout << "  Shared Memory per Block: " << deviceProp.sharedMemPerBlock << " bytes\n";
+        std::cout << "  Max Threads per Block: " << deviceProp.maxThreadsPerBlock << "\n";
+        std::cout << "  Max Threads per Dimension (X, Y, Z): "
+                  << deviceProp.maxThreadsDim[0] << ", "
+                  << deviceProp.maxThreadsDim[1] << ", "
+                  << deviceProp.maxThreadsDim[2] << "\n";
+        std::cout << "  Max Block Dimensions (X, Y, Z): "
+                  << deviceProp.maxGridSize[0] << ", "
+                  << deviceProp.maxGridSize[1] << ", "
+                  << deviceProp.maxGridSize[2] << "\n";
+        std::cout << "  Total Global Memory: " << deviceProp.totalGlobalMem << " bytes\n";
+        std::cout << "  Warp Size: " << deviceProp.warpSize << "\n";
+        std::cout << "  Multiprocessor Count: " << deviceProp.multiProcessorCount << "\n";
+        std::cout << "  Max Registers per Block: " << deviceProp.regsPerBlock << "\n";
+        std::cout << "  Compute Capability: " << deviceProp.major << "." << deviceProp.minor << "\n";
     }
 
     return 0;
