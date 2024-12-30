@@ -2,12 +2,11 @@
 
 ### 1) Tiling with shared memory
 
-Why doing this:
+#### Why doing this:
 - Shared memory allows threads in the same block to share data without accessing slower global memory repeatedly. 
 - This is especially useful for problems like matrix multiplication or convolution, where neighboring data points are reused.
 
-
-Key steps:
+#### Key steps:
 1. Load a tile (block of data) from global memory into shared memory.
 ```c++
 // 1. declaration
@@ -35,6 +34,8 @@ for(int j = 0; j < TILE_SIZE; j++){
 ```
 4.	Write results back to global memory.
 
+#### Known bugs:
+- for input matrixes that are too large (_o.o.m.: (10^5)+_) the kernel goes "memory access error" since it does not naturally fit into the shared memory.
 
 ### 2) Strided access
 
