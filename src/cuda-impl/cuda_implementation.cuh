@@ -12,6 +12,7 @@
 #include <cassert>
 #include <iostream>
 #include <cstdlib>
+#include <tuple>
 
 int check_devices_status();
 
