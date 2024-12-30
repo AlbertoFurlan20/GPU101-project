@@ -91,37 +91,56 @@ __global__ void convolution2D(const float* input, const float* kernel, float* ou
     int width = inputSize.first;
     int height = inputSize.second;
 
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int tileWidth = blockDim.x; // Width of the tile
+    int tileHeight = blockDim.y; // Height of the tile
 
-    int sharedX = threadIdx.x + kernelRadius;
+    int x = blockIdx.x * tileWidth + threadIdx.x; // Global x index
+    int y = blockIdx.y * tileHeight + threadIdx.y; // Global y index
+
+    int sharedX = threadIdx.x + kernelRadius; // Offset for shared memory
     int sharedY = threadIdx.y + kernelRadius;
-
-    int inputIndex = IDX_2D(x, y, width);
 
     // Load data into shared memory
     if (x < width && y < height) {
-        sharedIndexes[sharedY * (blockDim.x + 2 * kernelRadius) + sharedX] = input[inputIndex];
+        sharedIndexes[sharedY * (tileWidth + 2 * kernelRadius) + sharedX] = input[IDX_2D(x, y, width)];
     } else {
-        sharedIndexes[sharedY * (blockDim.x + 2 * kernelRadius) + sharedX] = 0.0f;
+        sharedIndexes[sharedY * (tileWidth + 2 * kernelRadius) + sharedX] = 0.0f;
     }
 
-    // Load halo regions
+    // Load halo regions (neighboring pixels outside the tile)
     if (threadIdx.x < kernelRadius) {
-        sharedIndexes[sharedY * (blockDim.x + 2 * kernelRadius) + (sharedX - kernelRadius)] =
-            (x >= kernelRadius) ? input[IDX_2D(x - kernelRadius, y, width)] : 0.0f;
-        sharedIndexes[sharedY * (blockDim.x + 2 * kernelRadius) + (sharedX + blockDim.x)] =
-            (x + blockDim.x < width) ? input[IDX_2D(x + blockDim.x, y, width)] : 0.0f;
+        if (x >= kernelRadius) {
+            sharedIndexes[sharedY * (tileWidth + 2 * kernelRadius) + (sharedX - kernelRadius)] =
+                input[IDX_2D(x - kernelRadius, y, width)];
+        } else {
+            sharedIndexes[sharedY * (tileWidth + 2 * kernelRadius) + (sharedX - kernelRadius)] = 0.0f;
+        }
+
+        if (x + tileWidth < width) {
+            sharedIndexes[sharedY * (tileWidth + 2 * kernelRadius) + (sharedX + tileWidth)] =
+                input[IDX_2D(x + tileWidth, y, width)];
+        } else {
+            sharedIndexes[sharedY * (tileWidth + 2 * kernelRadius) + (sharedX + tileWidth)] = 0.0f;
+        }
     }
 
     if (threadIdx.y < kernelRadius) {
-        sharedIndexes[(sharedY - kernelRadius) * (blockDim.x + 2 * kernelRadius) + sharedX] =
-            (y >= kernelRadius) ? input[IDX_2D(x, y - kernelRadius, width)] : 0.0f;
-        sharedIndexes[(sharedY + blockDim.y) * (blockDim.x + 2 * kernelRadius) + sharedX] =
-            (y + blockDim.y < height) ? input[IDX_2D(x, y + blockDim.y, width)] : 0.0f;
+        if (y >= kernelRadius) {
+            sharedIndexes[(sharedY - kernelRadius) * (tileWidth + 2 * kernelRadius) + sharedX] =
+                input[IDX_2D(x, y - kernelRadius, width)];
+        } else {
+            sharedIndexes[(sharedY - kernelRadius) * (tileWidth + 2 * kernelRadius) + sharedX] = 0.0f;
+        }
+
+        if (y + tileHeight < height) {
+            sharedIndexes[(sharedY + tileHeight) * (tileWidth + 2 * kernelRadius) + sharedX] =
+                input[IDX_2D(x, y + tileHeight, width)];
+        } else {
+            sharedIndexes[(sharedY + tileHeight) * (tileWidth + 2 * kernelRadius) + sharedX] = 0.0f;
+        }
     }
 
-    __syncthreads();
+    __syncthreads(); // Synchronize threads to ensure all data is loaded
 
     // Apply convolution
     if (x < width && y < height) {
@@ -132,7 +151,7 @@ __global__ void convolution2D(const float* input, const float* kernel, float* ou
                 int sharedInputY = sharedY - kernelRadius + idxY;
                 int sharedInputX = sharedX - kernelRadius + idxX;
                 partialResult += kernel[idxY * kernelSize + idxX] *
-                                 sharedIndexes[sharedInputY * (blockDim.x + 2 * kernelRadius) + sharedInputX];
+                                 sharedIndexes[sharedInputY * (tileWidth + 2 * kernelRadius) + sharedInputX];
             }
         }
 
