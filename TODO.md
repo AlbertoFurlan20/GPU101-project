@@ -9,8 +9,30 @@ Why doing this:
 
 Key steps:
 1. Load a tile (block of data) from global memory into shared memory.
+```c++
+// 1. declaration
+__shared__ float tile_A[TILE_SIZE][TILE_SIZE]; 
+__shared__ float tile_B[TILE_SIZE][TILE_SIZE];
+
+// 2. cumpute the indexes
+int row = threadIdx.y + blockIdx.y * TILE_SIZE;
+int col = threadIdx.x + blockIdx.x * TILE_SIZE;
+
+// 3. fill-up
+if(row < N && (i * TILE_SIZE + threadIdx.x) < N){
+    tile_A[threadIdx.y][threadIdx.x] = A[row * N + i * TILE_SIZE + threadIdx.x]; }
+else {
+    tile_A[threadIdx.y][threadIdx.x] = 0.0f;
+}
+```
 2.	Synchronize all threads within the block using __syncthreads().
 3.	Perform computations using shared memory.
+```c++
+// Example of multiplication
+for(int j = 0; j < TILE_SIZE; j++){    
+ val += tile_A[threadIdx.y][j] * tile_B[j][threadIdx.x]; 
+}
+```
 4.	Write results back to global memory.
 
 
