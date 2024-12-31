@@ -5,8 +5,9 @@
 using input_type = float;
 using filter_type = input_type;
 
-#define TILE_WIDTH 16;
-#define TILE_HEIGHT 16;
+#define TILE_WIDTH 512
+#define TILE_HEIGHT 512
+
 
 #define FILTER_RADIUS 4
 #define FILTER_SIZE (FILTER_RADIUS * 2 + 1)
@@ -209,68 +210,66 @@ __global__ void singleKernelConvolution2D(const float* input, const float* kerne
 __global__ void multiKernelConvolution2D(float* input, float* output, int inputWidth, int inputHeight, float* filter,
                                          int filterSize, int sharedMemSize, int startX, int startY)
 {
-    // Declare extern shared memory
     extern __shared__ float sharedMem[];
 
-    // Calculate the thread's position in the block
-    int tx = threadIdx.x + blockIdx.x * blockDim.x;
-    int ty = threadIdx.y + blockIdx.y * blockDim.y;
+    int localX = threadIdx.x;
+    int localY = threadIdx.y;
 
-    // Shared memory indexing (linearized for 2D access)
-    int sharedX = threadIdx.x + FILTER_RADIUS;
-    int sharedY = threadIdx.y + FILTER_RADIUS;
+    int globalX = startX + blockIdx.x * blockDim.x + localX;
+    int globalY = startY + blockIdx.y * blockDim.y + localY;
 
-    // Load data into shared memory (considering halo regions)
-    if (tx < inputWidth && ty < inputHeight)
-    {
-        int globalX = tx + startX;
-        int globalY = ty + startY;
-        sharedMem[sharedX + sharedY * (blockDim.x + 2 * FILTER_RADIUS)] = input[globalY * inputWidth + globalX];
+    int sharedWidth = blockDim.x + 2 * FILTER_RADIUS;
+    int sharedHeight = blockDim.y + 2 * FILTER_RADIUS;
 
-        // Load data from the edges of the tile into shared memory (halo region)
-        if (threadIdx.x < FILTER_RADIUS && globalX - FILTER_RADIUS >= 0)
-        {
-            sharedMem[(sharedX - FILTER_RADIUS) + sharedY * (blockDim.x + 2 * FILTER_RADIUS)] = input[globalY *
-                inputWidth + (globalX - FILTER_RADIUS)];
-        }
-        if (threadIdx.x >= blockDim.x - FILTER_RADIUS && globalX + FILTER_RADIUS < inputWidth)
-        {
-            sharedMem[(sharedX + FILTER_RADIUS) + sharedY * (blockDim.x + 2 * FILTER_RADIUS)] = input[globalY *
-                inputWidth + (globalX + FILTER_RADIUS)];
-        }
-        if (threadIdx.y < FILTER_RADIUS && globalY - FILTER_RADIUS >= 0)
-        {
-            sharedMem[sharedX + (sharedY - FILTER_RADIUS) * (blockDim.x + 2 * FILTER_RADIUS)] = input[(globalY -
-                FILTER_RADIUS) * inputWidth + globalX];
-        }
-        if (threadIdx.y >= blockDim.y - FILTER_RADIUS && globalY + FILTER_RADIUS < inputHeight)
-        {
-            sharedMem[sharedX + (sharedY + FILTER_RADIUS) * (blockDim.x + 2 * FILTER_RADIUS)] = input[(globalY +
-                FILTER_RADIUS) * inputWidth + globalX];
-        }
+    int sharedX = localX + FILTER_RADIUS;
+    int sharedY = localY + FILTER_RADIUS;
+
+    // Load data into shared memory
+    if (globalX < inputWidth && globalY < inputHeight) {
+        sharedMem[sharedX + sharedY * sharedWidth] = input[IDX_2D(globalX, globalY, inputWidth)];
+    } else {
+        sharedMem[sharedX + sharedY * sharedWidth] = 0.0f;
     }
 
-    __syncthreads(); // Synchronize to ensure all threads have loaded data into shared memory
+    // Handle halo regions
+    if (localX < FILTER_RADIUS) {
+        int haloGlobalX = globalX - FILTER_RADIUS;
+        sharedMem[sharedX - FILTER_RADIUS + sharedY * sharedWidth] =
+            (haloGlobalX >= 0 && haloGlobalX < inputWidth) ? input[IDX_2D(haloGlobalX, globalY, inputWidth)] : 0.0f;
+    }
+    if (localX >= blockDim.x - FILTER_RADIUS) {
+        int haloGlobalX = globalX + FILTER_RADIUS;
+        sharedMem[sharedX + FILTER_RADIUS + sharedY * sharedWidth] =
+            (haloGlobalX >= 0 && haloGlobalX < inputWidth) ? input[IDX_2D(haloGlobalX, globalY, inputWidth)] : 0.0f;
+    }
+    if (localY < FILTER_RADIUS) {
+        int haloGlobalY = globalY - FILTER_RADIUS;
+        sharedMem[sharedX + (sharedY - FILTER_RADIUS) * sharedWidth] =
+            (haloGlobalY >= 0 && haloGlobalY < inputHeight) ? input[IDX_2D(globalX, haloGlobalY, inputWidth)] : 0.0f;
+    }
+    if (localY >= blockDim.y - FILTER_RADIUS) {
+        int haloGlobalY = globalY + FILTER_RADIUS;
+        sharedMem[sharedX + (sharedY + FILTER_RADIUS) * sharedWidth] =
+            (haloGlobalY >= 0 && haloGlobalY < inputHeight) ? input[IDX_2D(globalX, haloGlobalY, inputWidth)] : 0.0f;
+    }
 
-    // Apply convolution (only for valid pixels within the current tile)
-    if (tx < inputWidth && ty < inputHeight)
-    {
+    __syncthreads();
+
+    // Apply convolution
+    if (globalX < inputWidth && globalY < inputHeight) {
         float result = 0.0f;
-        for (int fy = -FILTER_RADIUS; fy <= FILTER_RADIUS; fy++)
-        {
-            for (int fx = -FILTER_RADIUS; fx <= FILTER_RADIUS; fx++)
-            {
-                result += sharedMem[(sharedX + fx) + (sharedY + fy) * (blockDim.x + 2 * FILTER_RADIUS)] * filter[(fy +
-                    FILTER_RADIUS) * filterSize + (fx + FILTER_RADIUS)];
+        for (int fy = -FILTER_RADIUS; fy <= FILTER_RADIUS; ++fy) {
+            for (int fx = -FILTER_RADIUS; fx <= FILTER_RADIUS; ++fx) {
+                int sharedIdx = (sharedX + fx) + (sharedY + fy) * sharedWidth;
+                int filterIdx = (fy + FILTER_RADIUS) * filterSize + (fx + FILTER_RADIUS);
+                result += sharedMem[sharedIdx] * filter[filterIdx];
             }
         }
-        int globalIdx = (ty + startY) * inputWidth + (tx + startX);
-        if (globalIdx < inputWidth * inputHeight)
-        {
-            output[globalIdx] = result;
-        }
+        output[IDX_2D(globalX, globalY, inputWidth)] = result;
     }
 }
+
+
 
 std::pair<dim3, dim3> setSizeAndGrid(int convolutionType, std::pair<int, int> inputParams)
 {
@@ -418,8 +417,9 @@ std::tuple<float*, float*, float*> allocateAndInitDeviceMemory(DynamicArray<floa
     return {d_filter, d_input, d_output};
 }
 
-bool performComputationalFeasibility(std::tuple<int, int> sharedMemoryParams, std::tuple<int*, dim3> gridSizeParams,
-                                     std::tuple<int*, dim3> blockSizeParams)
+std::variant<bool, int> performComputationalFeasibility(
+    std::tuple<int, int> sharedMemoryParams, std::tuple<int*, dim3> gridSizeParams,
+    std::tuple<int*, dim3> blockSizeParams)
 {
     auto [sharedMax, sharedAmount] = sharedMemoryParams;
     auto [gridMax, gridAmount] = gridSizeParams;
@@ -428,17 +428,20 @@ bool performComputationalFeasibility(std::tuple<int, int> sharedMemoryParams, st
     // shared memory check
     if (sharedMax < sharedAmount)
     {
-        return false;
+        return 1;
     }
 
-    if (gridMax[0] < gridAmount.x || gridMax[1] < gridAmount.y || gridMax[2] < gridAmount.y)
+    auto tileX = TILE_WIDTH;
+    auto tileY = TILE_HEIGHT;
+
+    if (gridMax[0] < gridAmount.x * tileX || gridMax[1] < gridAmount.y * tileY)
     {
-        return false;
+        return 2;
     }
 
-    if (blockMax[0] < blockAmount.x || blockMax[1] < blockAmount.y || blockMax[2] < blockAmount.y)
+    if (blockMax[0] < blockAmount.x || blockMax[1] < blockAmount.y)
     {
-        return false;
+        return 3;
     }
 
     return true;
@@ -457,20 +460,39 @@ std::variant<bool, std::tuple<dim3, dim3, std::pair<int, int>, std::pair<int, in
     auto [sharedMemConstraint, gridSizeConstraint, blockSizeConstraint] = getDeviceConstraints();
 
     std::cout << "\n[SETUP]:: set block size :=(" << blockDim.x << ", " << blockDim.y << ", " << blockDim.z << ")";
-    std::cout << "          max size:=(" << blockSizeConstraint[0] << ", " << blockSizeConstraint[1] << ", " <<
+    std::cout << "\n          max size:=(" << blockSizeConstraint[0] << ", " << blockSizeConstraint[1] << ", " <<
         blockSizeConstraint[2] << ")";
 
     std::cout << "\n[SETUP]:: set grid size :=(" << gridSize.x << ", " << gridSize.y << ", " << gridSize.z << ")";
-    std::cout << "          max size:=(" << gridSizeConstraint[0] << ", " << gridSizeConstraint[1] << ", " <<
+    std::cout << "\n          max size:=(" << gridSizeConstraint[0] << ", " << gridSizeConstraint[1] << ", " <<
         gridSizeConstraint[2] << ")";
 
-    std::cout << "\n[SETUP]:: set shared mem size:= " << sharedMemSize << std::endl;
-    std::cout << "          max shared mem:= " << sharedMemConstraint << std::endl;
+    std::cout << "\n[SETUP]:: set shared mem size:= " << sharedMemSize;
+    std::cout << "\n          max shared mem:= " << sharedMemConstraint << std::endl;
 
-    if (performComputationalFeasibility({sharedMemConstraint, sharedMemSize},
-                                        {gridSizeConstraint, gridSize},
-                                        {blockSizeConstraint, blockDim}))
+    const auto outcome = performComputationalFeasibility({sharedMemConstraint, sharedMemSize},
+                                                         {gridSizeConstraint, gridSize},
+                                                         {blockSizeConstraint, blockDim});
+
+    if (!std::holds_alternative<bool>(outcome))
     {
+        std::cout << "\nArchitecture constraints violated:";
+
+        switch (std::get<int>(outcome))
+        {
+        case 1:
+            std::cout << "\n * shared memory constraint violated";
+            break;
+        case 2:
+            std::cout << "\n * grid size constraint violated";
+            break;
+        case 3:
+            std::cout << "\n * block size constraint violated";
+            break;
+        default:
+            std::cout << "unknown error";
+        }
+
         return false;
     }
 
@@ -491,7 +513,8 @@ float launchSingleKernel(std::variant<bool, T> outcome, float* d_input, float* d
     // Record the start time
     checkCudaErrors(cudaEventRecord(start));
 
-    convolution2D<<<gridSize, blockDim, sharedMemSize>>>(d_input, d_filter, d_output, inputParams, filterParams);
+    singleKernelConvolution2D<<<gridSize, blockDim, sharedMemSize>>>(d_input, d_filter, d_output, inputParams,
+                                                                     filterParams);
 
     // 4. device synch & mem copy backwards
     checkCudaErrors(cudaDeviceSynchronize());
@@ -524,7 +547,7 @@ float launchStream(float* d_input, float* d_filter, float* d_output, std::pair<i
     int numTilesY = (inputHeight + tileHeight - 1) / tileHeight;
 
     // Number of streams
-    int numStreams = 4;
+    const int numStreams = 4;
     cudaStream_t streams[numStreams];
     for (int i = 0; i < numStreams; ++i)
     {
@@ -532,7 +555,15 @@ float launchStream(float* d_input, float* d_filter, float* d_output, std::pair<i
     }
 
     int streamIdx = 0;
-    int sharedMemSize = (tileWidth + 2 * FILTER_RADIUS) * (tileHeight + 2 * FILTER_RADIUS) * sizeof(float);
+    // int sharedMemSize = (tileWidth + 2 * FILTER_RADIUS) * (tileHeight + 2 * FILTER_RADIUS) * sizeof(float);
+    std::cout << "\n\n[SUMMARY]:";
+
+    std::cout << "\n * tiles: " << tileWidth << "x" << tileHeight;
+    std::cout << "\n * input: " << inputWidth << "x" << inputHeight;
+    std::cout << "\n * #tiles: " << numTilesX << "x" << numTilesY;
+    std::cout << "\n * #streams: " << numStreams;
+
+    std::cout << "\n\n[SETUP]:: finished";
 
     cudaEvent_t start, stop;
     checkCudaErrors(cudaEventCreate(&start));
@@ -541,6 +572,8 @@ float launchStream(float* d_input, float* d_filter, float* d_output, std::pair<i
     // 3. kernel launch
     // Record the start time
     checkCudaErrors(cudaEventRecord(start));
+
+    std::cout << "\n[TIMER]:: start";
 
     // Launch kernels for each tile
     for (int ty = 0; ty < numTilesY; ++ty)
@@ -552,8 +585,11 @@ float launchStream(float* d_input, float* d_filter, float* d_output, std::pair<i
             int startY = ty * tileHeight;
 
             // Kernel grid and block sizes
-            dim3 blockSize(tileWidth,tileHeight);
-            dim3 gridSize((tileWidth + blockSize.x - 1) / blockSize.x, (tileHeight + blockSize.y - 1) / blockSize.y);
+            dim3 blockSize(16, 16);
+            dim3 gridSize((inputWidth + blockSize.x - 1) / blockSize.x, (inputHeight + blockSize.y - 1) / blockSize.y);
+
+
+            int sharedMemSize = (blockSize.x + 2 * FILTER_RADIUS) * (blockSize.y + 2 * FILTER_RADIUS) * sizeof(float);
 
             // Launch convolution kernel using streams
             multiKernelConvolution2D<<<gridSize, blockSize, sharedMemSize, streams[streamIdx]>>>(
@@ -568,6 +604,9 @@ float launchStream(float* d_input, float* d_filter, float* d_output, std::pair<i
         cudaStreamSynchronize(streams[i]);
     }
 
+
+    std::cout << "\n[STREAMS]:: clenaing streams";
+
     // Cleanup
     for (int i = 0; i < numStreams; ++i)
     {
@@ -576,6 +615,8 @@ float launchStream(float* d_input, float* d_filter, float* d_output, std::pair<i
 
     checkCudaErrors(cudaEventRecord(stop));
     checkCudaErrors(cudaEventSynchronize(stop));
+
+    std::cout << "\n[TIMER]:: STOP";
 
     // Calculate and display elapsed time
     float milliseconds = 0;
