@@ -72,6 +72,7 @@ set(SOURCES_CUDA
         src/cuda-impl/cuda_implementation.cu
         src/cuda-impl/old_test1.cu
         src/cuda-impl/cuda_test2.cu
+        src/cuda-impl/cuda_test3.cu
         src/cuda-impl/cuda-status-check.cpp
 )
 

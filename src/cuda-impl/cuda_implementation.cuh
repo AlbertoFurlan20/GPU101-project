@@ -22,4 +22,6 @@ int main_test(int);
 
 int main_test2(int);
 
+int main_test3(int);
+
 #endif //CUDA_IMPLEMENTATION_CUH

@@ -33,6 +33,10 @@ int main(int argc, char** argv)
     std::cout << "\n";
     std::cout << "\n";
     main_test2(value);
+    std::cout << "\n";
+    std::cout << "\n";
+    std::cout << "\n";
+    main_test3(value);
 
     delete[] dict;
 
