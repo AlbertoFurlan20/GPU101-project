@@ -54,7 +54,7 @@ for(int j = 0; j < TILE_SIZE; j++){
      - basically you split the input into tiles in order to fit all the input into the shared memory.
      - although this way you can overcome the y-axis out-of-bound problem, there'll be a single kernel launch (_differently from cuda streams_). 
   2. CUDA Streams:
-     - you split the input into chunks, each one is assigned to a stream the will launch a kernel.
+     - you split the input into chunks, each one is assigned to a stream that will launch a kernel.
      - all the kernels created by the splitting of the input will be executed in parallel.
      - doesn't solve grid-sizing by itself, why?
        - even though each single kernel will have its own grid and block sizes, at the exact moment you start them all together in parallel you're gonna end up in the exact same situation as before.
