@@ -65,7 +65,7 @@ int assignment_main(int argc, char** argv)
 
     assert(convolutionType == 1 || convolutionType == 2 || convolutionType == 3);
     std::cout << "supported convolution: 2D\n";
-
+64
     input_type* input = new input_type[width * height]; // Input
     filter_type* filter = new filter_type[FILTER_SIZE * FILTER_SIZE]; // Convolution filter
     input_type* output_cpu = new input_type[width * height]; // Output (CPU)

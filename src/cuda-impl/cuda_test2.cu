@@ -86,10 +86,10 @@ void convolution2D2(float *h_input, float *h_output, float *h_filter,
     cudaFree(d_filter);
 }
 
-int main_test2() {
+int main_test2(int dim) {
     // Example configuration (using smaller image for testing)
-    int width = 64; // Example image width (64x64 for testing, scale up as needed)
-    int height = 64; // Example image height (64x64)
+    int width = dim; // Example image width (64x64 for testing, scale up as needed)
+    int height = dim; // Example image height (64x64)
     int filterSize = FILTER_SIZE;
 
     // Allocate host memory for input image, filter, and output

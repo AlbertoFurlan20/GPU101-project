@@ -18,8 +18,8 @@ int check_devices_status();
 
 int run_assignment_cuda(int, char**);
 
-int main_test();
+int main_test(int);
 
-int main_test2();
+int main_test2(int);
 
 #endif //CUDA_IMPLEMENTATION_CUH

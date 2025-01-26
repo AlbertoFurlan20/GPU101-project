@@ -1,3 +1,5 @@
+#include <string>
+
 #include "src/cuda-impl/cuda_implementation.cuh"
 
 int main(int argc, char** argv)
@@ -26,11 +28,11 @@ int main(int argc, char** argv)
     std::cout << "\n";
     std::cout << "\n";
     std::cout << "\n";
-    main_test();
+    main_test(value);
     std::cout << "\n";
     std::cout << "\n";
     std::cout << "\n";
-    main_test2();
+    main_test2(value);
 
     delete[] dict;
 
