@@ -61,11 +61,21 @@ template <typename T>
 void printDynamicArray(DynamicArray<T>* array)
 {
     int count = 1;
+    int lim = 3;
+
     for (size_t i = 0; i < array->size(); ++i)
     {
         std::cout << array->operator[](i) << " ";
 
-        if (count % 3 == 0) std::cout << "\n";
+        if (count % 3 == 0)
+        {
+            std::cout << "\n";
+            lim--;
+            if (lim == 0)
+            {
+                break;
+            }
+        }
         count++;
     }
 

@@ -83,13 +83,25 @@ int assignment_main(int argc, char** argv)
 
     int count = 1;
     std::cout << "\n[OUTPUT]\n";
-    for (int i = 0; i < width * height; i++)
+    int lim = 3;
+
+    for (size_t i = 0; i < width * height; ++i)
     {
         std::cout << output_cpu[i] << " ";
 
-        if (count % 3 == 0) std::cout << "\n";
+        if (count % 3 == 0)
+        {
+            std::cout << "\n";
+            lim--;
+            if (lim == 0)
+            {
+                break;
+            }
+        }
         count++;
     }
+
+    std::cout << std::endl << std::endl;
 
     // Cleanup and deallocate memory
     delete[] input;
