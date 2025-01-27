@@ -104,14 +104,14 @@ void setup_streams(const float* input, const float* kernel, float* output,
     delete[] streams;
 }
 
-int main_streams(int dim, float* input, float* filter)
+int main_streams(const int dim, const float* input, const float* filter)
 {
     int width = dim;
     int height = dim;
 
-    float* h_input = input;
-    float* h_filter = filter;
-    float* h_output_streams = new float[width * height];
+    const auto h_input = input;
+    const auto h_filter = filter;
+    const auto h_output_streams = new float[width * height];
 
     float *d_input, *d_filter, *d_output;
     cudaMalloc(&d_input, width * height * sizeof(float));

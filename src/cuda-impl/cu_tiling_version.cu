@@ -56,15 +56,14 @@ __global__ void convolution2D_for_tiling(const float* input, const float* kernel
     }
 }
 
-int main_tiling(int dim, float* input, float* filter)
+int main_tiling(const int dim, const float* input, const float* filter)
 {
     int width = dim;
     int height = dim;
 
-    // Allocate host memory for input image, filter, and output
-    float* h_input = input;
-    float* h_filter = filter;
-    float* h_output_tiling = new float[width * height];
+    const auto h_input = input;
+    const auto h_filter = filter;
+    const auto h_output_tiling = new float[width * height];
 
     float *d_input, *d_filter, *d_output;
     cudaMalloc(&d_input, width * height * sizeof(float));

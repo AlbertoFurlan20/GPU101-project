@@ -17,7 +17,7 @@ int check_devices_status()
         return 1;
     }
 
-    std::cout << "Found " << deviceCount << "CUDA-enabled devices.\n";
+    std::cout << "Found " << deviceCount << " CUDA-enabled devices.\n";
 
     for (int deviceId = 0; deviceId < deviceCount; ++deviceId)
     {

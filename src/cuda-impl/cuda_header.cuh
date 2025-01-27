@@ -18,12 +18,12 @@
 
 std::pair<float*, float*> run_assignment_cuda(int, char**);
 
-int main_basic(int, float*, float*);
+int main_basic(int, const float*, const float* );
 
-int main_streams(int, float*, float*);
+int main_streams(int, const float*input, const float* );
 
-int main_tiling(int, float*, float*);
+int main_tiling(int, const float*input, const float* );
 
-int main_tiling_streams(int, float*, float*);
+int main_tiling_streams(int, const float*input, const float* );
 
 #endif //CUDA_IMPLEMENTATION_CUH

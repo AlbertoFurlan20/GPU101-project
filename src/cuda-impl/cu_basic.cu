@@ -67,15 +67,15 @@ __global__ void convolution2D_basic(const float* input, const float* kernel, flo
     }
 }
 
-int main_basic(int dim, float* input, float* filter)
+int main_basic(const int dim, const float* input, const float* filter)
 {
     int width = dim;
     int height = dim;
 
     // Allocate host memory for input image, filter, and output
-    float* h_input = input;
-    float* h_filter = filter;
-    float* h_output_basic = new float[width * height];
+    const auto h_input = input;
+    const auto h_filter = filter;
+    const auto h_output_basic = new float[width * height];
 
     // Allocate device memory
     float *d_input, *d_filter, *d_output;
