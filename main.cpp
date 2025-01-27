@@ -24,7 +24,7 @@ int main(int argc, char** argv)
     std::cout << "\n";
     std::cout << "\n";
     std::cout << "[Test]:: basic convolution\n";
-    main_composite(value, input, filter);
+    main_basic(value, input, filter);
     std::cout << "\n";
     std::cout << "\n";
     std::cout << "[Test]:: tiling convolution\n";

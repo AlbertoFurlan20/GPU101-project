@@ -18,7 +18,7 @@
 
 std::pair<float*, float*> run_assignment_cuda(int, char**);
 
-int main_composite(int, float*, float*);
+int main_basic(int, float*, float*);
 
 int main_streams(int, float*, float*);
 
