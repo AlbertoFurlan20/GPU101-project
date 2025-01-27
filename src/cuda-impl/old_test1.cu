@@ -104,41 +104,42 @@ void convolution2D(float *h_input, float *h_output, float *h_filter,
     }
 }
 
-int main_test(int dim) {
+int main_test(int dim, float* input, float* filter) {
     // Example configuration
     int width = dim; // Example image width (64x64 for testing, scale up as needed)
     int height = dim; // Example image height (64x64)
     int filterSize = FILTER_SIZE;
 
     // Allocate host memory for input image, filter, and output
-    float *h_input = new float[width * height];
+    float *h_input = input;
     float *h_output = new float[width * height];
-    float *h_filter = new float[filterSize * filterSize];
-
-    // Initialize input data and filter (example)
-    for (int i = 0; i < width * height; ++i) {
-        h_input[i] = static_cast<float>(rand()) / RAND_MAX;  // Random data for input image
-    }
-
-    // Initialize filter (example: simple averaging filter)
-    for (int i = 0; i < filterSize * filterSize; ++i) {
-        h_filter[i] = 1.0f / (filterSize * filterSize);  // Average filter
-    }
+    // float *h_filter = new float[filterSize * filterSize];
+    float *h_filter = filter;
 
     // Perform 2D convolution
     convolution2D(h_input, h_output, h_filter, width, height, filterSize);
 
     // Example output (just print the first few values)
     std::cout << "Output (first 10 values):" << std::endl;
+    std::cout << "> (input) [ ";
+    for (int i = 0; i < 10; ++i) {
+        std::cout << h_input[i] << " ";
+    }
+    std::cout << " ]\n";
+    std::cout << "> (filter) [ ";
+    for (int i = 0; i < 10; ++i) {
+        std::cout << h_filter[i] << " ";
+    }
+    std::cout << " ]\n";
     for (int i = 0; i < 10; ++i) {
         std::cout << h_output[i] << " ";
     }
     std::cout << std::endl;
 
     // Clean up
-    delete[] h_input;
+    // delete[] h_input;
     delete[] h_output;
-    delete[] h_filter;
+    // delete[] h_filter;
 
     return 0;
 }

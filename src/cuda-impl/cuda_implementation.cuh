@@ -16,12 +16,12 @@
 
 int check_devices_status();
 
-int run_assignment_cuda(int, char**);
+std::pair<float*, float*> run_assignment_cuda(int argc, char** argv);
 
-int main_test(int);
+int main_test(int dim, float* input, float* filter);
 
-int main_test2(int);
+int main_test2(int dim, float* input, float* filter);
 
-int main_test3(int);
+int main_test3(int, float* input, float* filter);
 
 #endif //CUDA_IMPLEMENTATION_CUH

@@ -60,23 +60,23 @@ public:
 template <typename T>
 void printDynamicArray(DynamicArray<T>* array)
 {
-    int count = 1;
-    int lim = 3;
+    // int count = 0;
+    // int lim = 3;
 
-    for (size_t i = 0; i < array->size(); ++i)
+    for (size_t i = 0; i < 10; ++i)
     {
         std::cout << array->operator[](i) << " ";
 
-        if (count % 3 == 0)
-        {
-            std::cout << "\n";
-            lim--;
-            if (lim == 0)
-            {
-                break;
-            }
-        }
-        count++;
+        // if (count % 3 == 0)
+        // {
+        //     // std::cout << "\n";
+        //     lim--;
+        //     if (lim == 0)
+        //     {
+        //         break;
+        //     }
+        // }
+        // count++;
     }
 
     std::cout << std::endl << std::endl;
@@ -191,12 +191,12 @@ std::pair<dim3, dim3> setSizeAndGrid(int convolutionType, std::pair<int, int> in
     return std::make_pair(gridSize, blockDim);
 }
 
-int run_assignment_cuda(int argc, char** argv)
+std::pair<float*, float*> run_assignment_cuda(int argc, char** argv)
 {
     if (argc < 2)
     {
         printf("Please specify:\n- matrix dimensions (1);\n- convolution type (2)");
-        return EXIT_FAILURE;
+        return std::make_pair(nullptr,nullptr);
     }
 
     unsigned convolutionType;
@@ -218,7 +218,7 @@ int run_assignment_cuda(int argc, char** argv)
     if (convolutionType < 1 || convolutionType > 3)
     {
       std::cout << "\n[ERROR]:: supported convolution: 2D\n";
-      return EXIT_FAILURE;
+        return std::make_pair(nullptr,nullptr);
     }
     // up to 3D convolution is supported
     assert(convolutionType == 1 || convolutionType == 2 || convolutionType == 3);
@@ -268,16 +268,26 @@ int run_assignment_cuda(int argc, char** argv)
                                cudaMemcpyDeviceToHost));
 
     std::cout << "[OUTPUT]\n";
+    std::cout << "> (input) [ ";
+    for (int i = 0; i < 10; ++i) {
+        std::cout << input->operator[](i) << " ";
+    }
+    std::cout << " ]\n";
+    std::cout << "> (filter) [ ";
+    for (int i = 0; i < 10; ++i) {
+        std::cout << filter->operator[](i) << " ";
+    }
+    std::cout << " ]\n";
     printDynamicArray(output_gpu);
 
     // Cleanup and deallocate memory
     delete output_gpu;
-    delete filter;
-    delete input;
+    // delete filter;
+    // delete input;
 
     cudaFree(d_filter);
     cudaFree(d_input);
     cudaFree(d_output);
 
-    return EXIT_SUCCESS;
+    return std::make_pair(input->getData(),filter->getData());
 }

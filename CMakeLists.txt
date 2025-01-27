@@ -74,6 +74,7 @@ set(SOURCES_CUDA
         src/cuda-impl/cuda_test2.cu
         src/cuda-impl/cuda_test3.cu
         src/cuda-impl/cuda-status-check.cpp
+        src/cpp-impl/cpp_implementation.cpp
 )
 
 add_executable(

@@ -12,7 +12,7 @@ int main(int argc, char** argv)
     // std::cin >> value;
     // strcpy(argv[1], std::to_string(value).c_str());
 
-    assignment_main(argc, argv);
+    // assignment_main(argc, argv);
 
     return 0;
 }

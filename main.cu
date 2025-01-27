@@ -1,6 +1,7 @@
 #include <string>
 
 #include "src/cuda-impl/cuda_implementation.cuh"
+#include "src/cpp-impl/cpp_implementation.h"
 
 int main(int argc, char** argv)
 {
@@ -10,35 +11,43 @@ int main(int argc, char** argv)
     std::cout << "enter size: ";
     std::cin >> value;
 
-    char** dict = new char*[3]; // Space for two arguments
+    char** dict = new char*[3];
 
-    // Initialize the first element to nullptr
     dict[0] = nullptr;
 
-    // Convert the int value to string and then to char*
     std::string str_value = std::to_string(value);
 
-    dict[1] = new char[str_value.length() + 1]; // +1 for null terminator
+    dict[1] = new char[str_value.length() + 1];
     strcpy(dict[1], str_value.c_str());
 
-    dict[2] = new char[2]; // "2" plus null terminator
+    dict[2] = new char[2];
     strcpy(dict[2], "2");
 
-    run_assignment_cuda(argc, dict);
+    auto [input, filter] = run_assignment_cuda(argc, dict);
     std::cout << "\n";
     std::cout << "\n";
     std::cout << "\n";
-    main_test(value);
+    std::cout << "[Test bench]\n";
+    assignment_main(value, input, filter);
     std::cout << "\n";
     std::cout << "\n";
     std::cout << "\n";
-    main_test2(value);
+    std::cout << "[Test 1]\n";
+    main_test(value, input, filter);
     std::cout << "\n";
     std::cout << "\n";
     std::cout << "\n";
-    main_test3(value);
+    std::cout << "[Test 2]\n";
+    main_test2(value, input, filter);
+    std::cout << "\n";
+    std::cout << "\n";
+    std::cout << "\n";
+    std::cout << "[Test 3]\n";
+    main_test3(value, input, filter);
 
     delete[] dict;
+    delete[] input;
+    delete[] filter;
 
     return 0;
 }

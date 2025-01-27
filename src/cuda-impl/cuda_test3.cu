@@ -93,30 +93,37 @@ void convolution2D(const float* h_input, const float* h_filter, float* h_output,
     cudaFree(d_output);
 }
 
-int main_test3(int dim) {
+int main_test3(int dim, float* input, float* filter) {
     // Example usage
     int width = dim;
     int height = dim;
     const int size = width * height;
-    float* h_input = new float[size];
-    float* h_filter = new float[FILTER_SIZE * FILTER_SIZE];
-    float* h_output = new float[size];
-
-    // Initialize input and filter
-    for (int i = 0; i < width * height; ++i) h_input[i] = static_cast<float>(i % 256);
-    for (int i = 0; i < FILTER_SIZE * FILTER_SIZE; ++i) h_filter[i] = 1.0f / (FILTER_SIZE * FILTER_SIZE);
+    float *h_input = input;
+    float *h_output = new float[width * height];
+    // float *h_filter = new float[filterSize * filterSize];
+    float *h_filter = filter;
 
     convolution2D(h_input, h_filter, h_output, width, height);
 
     // Example output (just print the first few values)
     std::cout << "Output (first 10 values):" << std::endl;
+    std::cout << "> (input) [ ";
+    for (int i = 0; i < 10; ++i) {
+        std::cout << h_input[i] << " ";
+    }
+    std::cout << " ]\n";
+    std::cout << "> (filter) [ ";
+    for (int i = 0; i < 10; ++i) {
+        std::cout << h_filter[i] << " ";
+    }
+    std::cout << " ]\n";
     for (int i = 0; i < 10; ++i) {
         std::cout << h_output[i] << " ";
     }
     std::cout << std::endl;
 
-    delete[] h_input;
-    delete[] h_filter;
+    // delete[] h_input;
+    // delete[] h_filter;
     delete[] h_output;
     return 0;
 }

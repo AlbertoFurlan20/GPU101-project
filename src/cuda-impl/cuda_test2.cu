@@ -8,119 +8,280 @@
 // Tiling parameters (adjust based on device capabilities)
 #define TILE_WIDTH 32  // You can adjust this based on device capabilities
 
-// CUDA kernel for 2D convolution
-__global__ void convolution2D_kernel2(float *d_input, float *d_output, float *d_filter,
-                                      int width, int height, int filterSize) {
-    __shared__ float shared_input[TILE_WIDTH + FILTER_SIZE - 1][TILE_WIDTH + FILTER_SIZE - 1];
+// Utility macro for 2D indexing
+#define IDX_2D(x, y, width) ((y) * (width) + (x))
 
-    int tx = threadIdx.x;
-    int ty = threadIdx.y;
-    int bx = blockIdx.x;
-    int by = blockIdx.y;
+__global__ void convolution2D_basic(const float* input, const float* kernel, float* output,
+                              std::pair<int, int> inputSize, std::pair<int, int> filterParams)
+{
+    extern __shared__ float sharedIndexes[];
 
-    // Calculate global row and column for the output
-    int row = by * TILE_WIDTH + ty;
-    int col = bx * TILE_WIDTH + tx;
+    int kernelRadius = filterParams.second;
+    int kernelSize = filterParams.first;
+    int width = inputSize.first;
+    int height = inputSize.second;
 
-    // Load data into shared memory, with padding to handle filter overlap
-    for (int i = ty; i < TILE_WIDTH + FILTER_SIZE - 1; i += blockDim.y) {
-        for (int j = tx; j < TILE_WIDTH + FILTER_SIZE - 1; j += blockDim.x) {
-            int input_row = row + i - FILTER_RADIUS;
-            int input_col = col + j - FILTER_RADIUS;
-            if (input_row >= 0 && input_row < height && input_col >= 0 && input_col < width) {
-                shared_input[i][j] = d_input[input_row * width + input_col];
-            } else {
-                shared_input[i][j] = 0.0f;  // Pad with zeros for out-of-bound accesses
-            }
-        }
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+    int sharedX = threadIdx.x + kernelRadius;
+    int sharedY = threadIdx.y + kernelRadius;
+
+    int inputIndex = IDX_2D(x, y, width);
+
+    // Load data into shared memory
+    if (x < width && y < height)
+    {
+        sharedIndexes[sharedY * (blockDim.x + 2 * kernelRadius) + sharedX] = input[inputIndex];
+    }
+    else
+    {
+        sharedIndexes[sharedY * (blockDim.x + 2 * kernelRadius) + sharedX] = 0.0f;
     }
 
-    __syncthreads();  // Synchronize threads to ensure shared memory is fully loaded
+    // Load halo regions
+    if (threadIdx.x < kernelRadius)
+    {
+        sharedIndexes[sharedY * (blockDim.x + 2 * kernelRadius) + (sharedX - kernelRadius)] =
+            (x >= kernelRadius) ? input[IDX_2D(x - kernelRadius, y, width)] : 0.0f;
+        sharedIndexes[sharedY * (blockDim.x + 2 * kernelRadius) + (sharedX + blockDim.x)] =
+            (x + blockDim.x < width) ? input[IDX_2D(x + blockDim.x, y, width)] : 0.0f;
+    }
 
-    // Perform the convolution if the current thread corresponds to a valid output pixel
-    if (ty < TILE_WIDTH && tx < TILE_WIDTH && row < height && col < width) {
-        float conv_result = 0.0f;
-        for (int i = 0; i < filterSize; ++i) {
-            for (int j = 0; j < filterSize; ++j) {
-                conv_result += shared_input[ty + i][tx + j] * d_filter[i * filterSize + j];
+    if (threadIdx.y < kernelRadius)
+    {
+        sharedIndexes[(sharedY - kernelRadius) * (blockDim.x + 2 * kernelRadius) + sharedX] =
+            (y >= kernelRadius) ? input[IDX_2D(x, y - kernelRadius, width)] : 0.0f;
+        sharedIndexes[(sharedY + blockDim.y) * (blockDim.x + 2 * kernelRadius) + sharedX] =
+            (y + blockDim.y < height) ? input[IDX_2D(x, y + blockDim.y, width)] : 0.0f;
+    }
+
+    __syncthreads();
+
+    // Apply convolution
+    if (x < width && y < height)
+    {
+        float partialResult = 0.0f;
+
+        for (int idxY = 0; idxY < kernelSize; ++idxY)
+        {
+            for (int idxX = 0; idxX < kernelSize; ++idxX)
+            {
+                int sharedInputY = sharedY - kernelRadius + idxY;
+                int sharedInputX = sharedX - kernelRadius + idxX;
+                partialResult += kernel[idxY * kernelSize + idxX] *
+                    sharedIndexes[sharedInputY * (blockDim.x + 2 * kernelRadius) + sharedInputX];
             }
         }
-        d_output[row * width + col] = conv_result;
+
+        output[IDX_2D(x, y, width)] = partialResult;
     }
 }
 
-void convolution2D2(float *h_input, float *h_output, float *h_filter,
-                   int width, int height, int filterSize) {
-    float *d_input, *d_output, *d_filter;
-    size_t inputSize = width * height * sizeof(float);
-    size_t filterSizeInBytes = filterSize * filterSize * sizeof(float);
-    size_t outputSize = width * height * sizeof(float);
+// Version 1: Tiling Only
+__global__ void convolution2D_tiling(const float* input, const float* kernel, float* output,
+                                     std::pair<int, int> inputSize, std::pair<int, int> filterParams)
+{
+    extern __shared__ float sharedIndexes[];
 
-    // Allocate device memory
-    cudaMalloc(&d_input, inputSize);
-    cudaMalloc(&d_output, outputSize);
-    cudaMalloc(&d_filter, filterSizeInBytes);
+    int kernelRadius = filterParams.second;
+    int kernelSize = filterParams.first;
+    int width = inputSize.first;
+    int height = inputSize.second;
 
-    // Copy input data and filter to device
-    cudaMemcpy(d_input, h_input, inputSize, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_filter, h_filter, filterSizeInBytes, cudaMemcpyHostToDevice);
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
 
-    // Define grid and block dimensions
-    dim3 blockSize(TILE_WIDTH, TILE_WIDTH);  // Each block processes a TILE_WIDTH x TILE_WIDTH region
-    int gridX = (width + TILE_WIDTH - 1) / TILE_WIDTH;
-    int gridY = (height + TILE_WIDTH - 1) / TILE_WIDTH;
-    dim3 gridSize(gridX, gridY);
+    int sharedX = threadIdx.x + kernelRadius;
+    int sharedY = threadIdx.y + kernelRadius;
 
-    // Launch the convolution kernel
-    convolution2D_kernel2<<<gridSize, blockSize>>>(d_input, d_output, d_filter, width, height, filterSize);
+    int sharedWidth = blockDim.x + 2 * kernelRadius;
+    int sharedHeight = blockDim.y + 2 * kernelRadius;
 
-    // Synchronize to ensure kernel execution is complete before copying data back
-    cudaDeviceSynchronize();
+    // Load data into shared memory, including halo regions
+    for (int tileY = threadIdx.y; tileY < sharedHeight; tileY += blockDim.y)
+    {
+        for (int tileX = threadIdx.x; tileX < sharedWidth; tileX += blockDim.x)
+        {
+            int globalX = blockIdx.x * blockDim.x + tileX - kernelRadius;
+            int globalY = blockIdx.y * blockDim.y + tileY - kernelRadius;
 
-    // Copy the result back to host
-    cudaMemcpy(h_output, d_output, outputSize, cudaMemcpyDeviceToHost);
+            sharedIndexes[tileY * sharedWidth + tileX] =
+                (globalX >= 0 && globalX < width && globalY >= 0 && globalY < height)
+                    ? input[IDX_2D(globalX, globalY, width)]
+                    : 0.0f;
+        }
+    }
 
-    // Free device memory
-    cudaFree(d_input);
-    cudaFree(d_output);
-    cudaFree(d_filter);
+    __syncthreads();
+
+    // Apply convolution
+    if (x < width && y < height)
+    {
+        float partialResult = 0.0f;
+
+        for (int idxY = 0; idxY < kernelSize; ++idxY)
+        {
+            for (int idxX = 0; idxX < kernelSize; ++idxX)
+            {
+                int sharedInputY = sharedY - kernelRadius + idxY;
+                int sharedInputX = sharedX - kernelRadius + idxX;
+                partialResult += kernel[idxY * kernelSize + idxX] *
+                    sharedIndexes[sharedInputY * sharedWidth + sharedInputX];
+            }
+        }
+
+        output[IDX_2D(x, y, width)] = partialResult;
+    }
 }
 
-int main_test2(int dim) {
-    // Example configuration (using smaller image for testing)
-    int width = dim; // Example image width (64x64 for testing, scale up as needed)
-    int height = dim; // Example image height (64x64)
+// Version 2: Streams Only
+void launch_convolution2D_streams(const float* input, const float* kernel, float* output,
+                                  std::pair<int, int> inputSize, std::pair<int, int> filterParams,
+                                  int numStreams)
+{
+    int width = inputSize.first;
+    int height = inputSize.second;
+
+    int streamHeight = (height + numStreams - 1) / numStreams;
+    cudaStream_t* streams = new cudaStream_t[numStreams];
+
+    for (int i = 0; i < numStreams; ++i)
+    {
+        cudaStreamCreate(&streams[i]);
+        int startRow = i * streamHeight;
+        int endRow = min((i + 1) * streamHeight, height);
+
+        if (startRow >= height) break;
+
+        dim3 blockDim(16, 16);
+        dim3 gridDim((width + blockDim.x - 1) / blockDim.x, (endRow - startRow + blockDim.y - 1) / blockDim.y);
+
+        convolution2D_basic<<<gridDim, blockDim, (blockDim.x + 2 * filterParams.second) * (blockDim.y + 2 * filterParams.
+            second) * sizeof(float), streams[i]>>>(
+            input + startRow * width, kernel, output + startRow * width,
+            {width, endRow - startRow}, filterParams);
+    }
+
+    for (int i = 0; i < numStreams; ++i)
+    {
+        cudaStreamSynchronize(streams[i]);
+        cudaStreamDestroy(streams[i]);
+    }
+
+    delete[] streams;
+}
+
+// Version 3: Tiling + Streams
+void launch_convolution2D_tiling_streams(const float* input, const float* kernel, float* output,
+                                         std::pair<int, int> inputSize, std::pair<int, int> filterParams,
+                                         int numStreams)
+{
+    int width = inputSize.first;
+    int height = inputSize.second;
+
+    int streamHeight = (height + numStreams - 1) / numStreams;
+    cudaStream_t* streams = new cudaStream_t[numStreams];
+
+    for (int i = 0; i < numStreams; ++i)
+    {
+        cudaStreamCreate(&streams[i]);
+        int startRow = i * streamHeight;
+        int endRow = min((i + 1) * streamHeight, height);
+
+        if (startRow >= height) break;
+
+        dim3 blockDim(16, 16);
+        dim3 gridDim((width + blockDim.x - 1) / blockDim.x, (endRow - startRow + blockDim.y - 1) / blockDim.y);
+
+        convolution2D_tiling<<<gridDim, blockDim, (blockDim.x + 2 * filterParams.second) * (blockDim.y + 2 *
+            filterParams.second) * sizeof(float), streams[i]>>>(
+            input + startRow * width, kernel, output + startRow * width,
+            {width, endRow - startRow}, filterParams);
+    }
+
+    for (int i = 0; i < numStreams; ++i)
+    {
+        cudaStreamSynchronize(streams[i]);
+        cudaStreamDestroy(streams[i]);
+    }
+
+    delete[] streams;
+}
+
+int main_test2(int dim, float* input, float* filter)
+{
+    // Example configuration
+    int width = dim;
+    int height = dim;
     int filterSize = FILTER_SIZE;
 
     // Allocate host memory for input image, filter, and output
-    float *h_input = new float[width * height];
-    float *h_output = new float[width * height];
-    float *h_filter = new float[filterSize * filterSize];
+    float* h_input = input;
+    float* h_filter = filter;
+    float* h_output_basic = new float[width * height];
+    float* h_output_tiling = new float[width * height];
+    float* h_output_streams = new float[width * height];
+    float* h_output_both = new float[width * height];
 
-    // Initialize input data and filter (example)
-    for (int i = 0; i < width * height; ++i) {
-        h_input[i] = static_cast<float>(rand()) / RAND_MAX;  // Random data for input image
-    }
+    // Allocate device memory
+    float *d_input, *d_filter, *d_output;
+    cudaMalloc(&d_input, width * height * sizeof(float));
+    cudaMalloc(&d_filter, FILTER_SIZE * FILTER_SIZE * sizeof(float));
+    cudaMalloc(&d_output, width * height * sizeof(float));
 
-    // Initialize filter (example: simple averaging filter)
-    for (int i = 0; i < filterSize * filterSize; ++i) {
-        h_filter[i] = 1.0f / (filterSize * filterSize);  // Average filter
-    }
+    cudaMemcpy(d_input, h_input, width * height * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_filter, h_filter, FILTER_SIZE * FILTER_SIZE * sizeof(float), cudaMemcpyHostToDevice);
 
-    // Perform 2D convolution
-    convolution2D2(h_input, h_output, h_filter, width, height, filterSize);
+    // Kernel execution parameters
+    dim3 blockDim(16, 16);
+    dim3 gridDim((width + blockDim.x - 1) / blockDim.x, (height + blockDim.y - 1) / blockDim.y);
+    size_t sharedMemorySize = (blockDim.x + 2 * FILTER_RADIUS) * (blockDim.y + 2 * FILTER_RADIUS) * sizeof(float);
+
+    // Run kernels
+    convolution2D_basic<<<gridDim, blockDim, sharedMemorySize>>>(d_input, d_filter, d_output, {width, height}, {FILTER_SIZE, FILTER_RADIUS});
+    cudaMemcpy(h_output_basic, d_output, width * height * sizeof(float), cudaMemcpyDeviceToHost);
+
+    convolution2D_tiling<<<gridDim, blockDim, sharedMemorySize>>>(d_input, d_filter, d_output, {width, height}, {FILTER_SIZE, FILTER_RADIUS});
+    cudaMemcpy(h_output_tiling, d_output, width * height * sizeof(float), cudaMemcpyDeviceToHost);
+
+    launch_convolution2D_streams(d_input, d_filter, d_output, {width, height}, {FILTER_SIZE, FILTER_RADIUS}, 4);
+    cudaMemcpy(h_output_streams, d_output, width * height * sizeof(float), cudaMemcpyDeviceToHost);
+
+    launch_convolution2D_tiling_streams(d_input, d_filter, d_output, {width, height}, {FILTER_SIZE, FILTER_RADIUS}, 4);
+    cudaMemcpy(h_output_both, d_output, width * height * sizeof(float), cudaMemcpyDeviceToHost);
 
     // Example output (just print the first few values)
     std::cout << "Output (first 10 values):" << std::endl;
-    for (int i = 0; i < 10; ++i) {
-        std::cout << h_output[i] << " ";
-    }
+    std::cout << "> (input) [ ";
+    for (int i = 0; i < 10; ++i) std::cout << h_input[i] << " ";
+    std::cout << "]\n";
+    std::cout << "> (filter) [ ";
+    for (int i = 0; i < 10; ++i) std::cout << h_filter[i] << " ";
+    std::cout << "]\n";
+    std::cout << "> (basic) [ ";
+    for (int i = 0; i < 10; ++i) std::cout << h_output_basic[i] << " ";
+    std::cout << "]\n";
+    std::cout << "> (out-tiling) [ ";
+    for (int i = 0; i < 10; ++i) std::cout << h_output_tiling[i] << " ";
+    std::cout << "]\n";
+    std::cout << "> (out-streams) [ ";
+    for (int i = 0; i < 10; ++i) std::cout << h_output_streams[i] << " ";
+    std::cout << "]\n";
+    std::cout << "> (out-both) [ ";
+    for (int i = 0; i < 10; ++i) std::cout << h_output_both[i] << " ";
+    std::cout << "]\n";
     std::cout << std::endl;
 
     // Clean up
-    delete[] h_input;
-    delete[] h_output;
-    delete[] h_filter;
+    cudaFree(d_input);
+    cudaFree(d_filter);
+    cudaFree(d_output);
+
+    delete[] h_output_basic;
+    delete[] h_output_tiling;
+    delete[] h_output_streams;
+    delete[] h_output_both;
 
     return 0;
 }

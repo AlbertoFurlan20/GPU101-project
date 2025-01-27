@@ -8,6 +8,6 @@
 #include <iostream>
 #include <vector>
 
-int assignment_main(int argc, char** argv);
+int assignment_main(int dim, float* input, float* filter);
 
 #endif //CPP_IMPLEMENTATION_H
