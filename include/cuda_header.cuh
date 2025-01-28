@@ -20,6 +20,8 @@ std::pair<float*, float*> run_assignment_cuda(int, char**);
 
 float* main_basic(int, const float*, const float*);
 
+__global__ void convolution2D_basic(const float*, const float*, float*, std::pair<int, int>, std::pair<int, int>);
+
 float* main_streams(int, const float*, const float*);
 
 float* main_tiling(int, const float*, const float*);

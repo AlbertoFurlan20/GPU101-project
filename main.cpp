@@ -16,8 +16,14 @@ int main(int argc, char** argv)
     auto [input, filter] = generate(value);
     std::cout << "\n";
     std::cout << "\n";
-    std::cout << "[Test]:: cpu convolution\n";
 
+    if (input == nullptr || filter == nullptr)
+    {
+        std::cerr << "Error: input/filter initialization failed\n";
+        return 1;
+    }
+
+    std::cout << "[Test]:: cpu convolution\n";
     auto output = assignment_main(value, input, filter);
     log_array(output);
     delete[] output;

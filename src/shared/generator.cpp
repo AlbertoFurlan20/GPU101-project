@@ -53,25 +53,11 @@ std::pair<float*, float*> generate(int dim)
 {
     try
     {
-        auto input = new DynamicArray<float>(dim * dim);
-        auto filter = new DynamicArray<float>(FILTER_SIZE * FILTER_SIZE);
+        const auto input = new DynamicArray<float>(dim * dim);
+        const auto filter = new DynamicArray<float>(FILTER_SIZE * FILTER_SIZE);
 
         filter->init();
         input->init();
-
-        std::cout << "> (input) [ ";
-        for (int i = 0; i < 10; ++i)
-        {
-            std::cout << input->operator[](i) << " ";
-        }
-        std::cout << " ]\n";
-
-        std::cout << "> (filter) [ ";
-        for (int i = 0; i < 10; ++i)
-        {
-            std::cout << filter->operator[](i) << " ";
-        }
-        std::cout << " ]\n";;
 
         return std::make_pair(input->getData(), filter->getData());
     } catch (std::exception& e)
