@@ -1,4 +1,4 @@
-#include "cuda_header.cuh"
+#include <cuda_header.cuh>
 
 using input_type = float;
 using filter_type = input_type;

@@ -1,4 +1,4 @@
-#include "s_header.h"
+#include <shared_header.h>
 
 int check_devices_status()
 {

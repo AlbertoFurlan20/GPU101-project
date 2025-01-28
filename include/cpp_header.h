@@ -8,6 +8,12 @@
 #include <cassert>
 #include <omp.h>
 
-int assignment_main(int dim, float* input, float* filter);
+#define FILTER_RADIUS 4
+#define FILTER_SIZE (FILTER_RADIUS * 2 + 1)
+
+using input_type = float;
+using filter_type = input_type;
+
+float* assignment_main(int, const float*, const float*);
 
 #endif //CPP_IMPLEMENTATION_H

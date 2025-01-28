@@ -1,8 +1,6 @@
-#include <string>
-
-#include "src/cuda-impl/cuda_header.cuh"
-#include "src/cpp-impl/cpp_header.h"
-#include "src/shared/s_header.h"
+#include <cuda_header.cuh>
+#include <cpp_header.h>
+#include <shared_header.h>
 
 int main(int argc, char** argv)
 {
@@ -19,24 +17,34 @@ int main(int argc, char** argv)
     std::cout << "\n";
     std::cout << "\n";
     std::cout << "[Test]:: cpu convolution\n";
-    //TODO mpi multithreading to boost the performances of cpu-version
-    assignment_main(value, input, filter);
+
+    auto output = assignment_main(value, input, filter);
+    log_array(output);
+    delete[] output;
     std::cout << "\n";
     std::cout << "\n";
     std::cout << "[Test]:: basic convolution\n";
-    main_basic(value, input, filter);
+    output = main_basic(value, input, filter);
+    log_array(output);
+    delete[] output;
     std::cout << "\n";
     std::cout << "\n";
     std::cout << "[Test]:: tiling convolution\n";
-    main_tiling(value, input, filter);
+    output = main_tiling(value, input, filter);
+    log_array(output);
+    delete[] output;
     std::cout << "\n";
     std::cout << "\n";
     std::cout << "[Test]:: streams convolution\n";
-    main_streams(value, input, filter);
+    output = main_streams(value, input, filter);
+    log_array(output);
+    delete[] output;
     std::cout << "\n";
     std::cout << "\n";
     std::cout << "[Test]:: streams + tiling convolution\n";
-    main_tiling_streams(value, input, filter);
+    output = main_tiling_streams(value, input, filter);
+    log_array(output);
+    delete[] output;
 
     delete[] input;
     delete[] filter;

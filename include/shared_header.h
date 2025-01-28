@@ -19,4 +19,6 @@ void checkOpenMPStatus();
 
 std::pair<float*, float*> generate(int);
 
+void log_array(const float*);
+
 #endif //S_HEADER_H

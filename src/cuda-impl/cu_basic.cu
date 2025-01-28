@@ -1,4 +1,4 @@
-#include "cuda_header.cuh"
+#include <cuda_header.cuh>
 
 __global__ void convolution2D_basic(const float* input, const float* kernel, float* output,
                               std::pair<int, int> inputSize, std::pair<int, int> filterParams)
@@ -67,7 +67,7 @@ __global__ void convolution2D_basic(const float* input, const float* kernel, flo
     }
 }
 
-int main_basic(const int dim, const float* input, const float* filter)
+float* main_basic(const int dim, const float* input, const float* filter)
 {
     int width = dim;
     int height = dim;
@@ -94,17 +94,11 @@ int main_basic(const int dim, const float* input, const float* filter)
     // Run kernels
     convolution2D_basic<<<gridDim, blockDim, sharedMemorySize>>>(d_input, d_filter, d_output, {width, height}, {FILTER_SIZE, FILTER_RADIUS});
     cudaMemcpy(h_output_basic, d_output, width * height * sizeof(float), cudaMemcpyDeviceToHost);
-    std::cout << "[ ";
-    for (int i = 0; i < 10; ++i) std::cout << h_output_basic[i] << " ";
-    std::cout << "]\n";
-    std::cout << std::endl;
 
     // Clean up
     cudaFree(d_input);
     cudaFree(d_filter);
     cudaFree(d_output);
 
-    delete[] h_output_basic;
-
-    return 0;
+    return h_output_basic;
 }

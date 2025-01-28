@@ -1,4 +1,4 @@
-# include "cuda_header.cuh"
+#include <cuda_header.cuh>
 
 __global__ void convolution2D_for_tiling_streams(const float* input, const float* kernel, float* output,
                                      std::pair<int, int> inputSize, std::pair<int, int> filterParams)
@@ -93,7 +93,7 @@ void launch_convolution2D_tiling_streams(const float* input, const float* kernel
     delete[] streams;
 }
 
-int main_tiling_streams(const int dim, const float* input, const float* filter)
+float* main_tiling_streams(const int dim, const float* input, const float* filter)
 {
     int width = dim;
     int height = dim;
@@ -113,15 +113,9 @@ int main_tiling_streams(const int dim, const float* input, const float* filter)
     launch_convolution2D_tiling_streams(d_input, d_filter, d_output, {width, height}, {FILTER_SIZE, FILTER_RADIUS}, 4);
     cudaMemcpy(h_output_both, d_output, width * height * sizeof(float), cudaMemcpyDeviceToHost);
 
-    std::cout << "[ ";
-    for (int i = 0; i < 10; ++i) std::cout << h_output_both[i] << " ";
-    std::cout << "]\n";
-
     cudaFree(d_input);
     cudaFree(d_filter);
     cudaFree(d_output);
 
-    delete[] h_output_both;
-
-    return 0;
+    return h_output_both;
 }

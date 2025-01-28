@@ -41,25 +41,43 @@ else()
     message(STATUS "[CONFIG] OpenMP not found")
 endif()
 
+# Include directories
+include_directories(include)
+
 # Setting sources files
 set(SOURCES_CUDA
-        include/cuda_header.cuh
-        include/cpp_header.h
         src/cuda-impl/cu_shared_version.cu
         src/cuda-impl/cu_tiling_version.cu
         src/cuda-impl/cu_stream_tiling_version.cu
         src/cuda-impl/cu_basic.cu
         src/cuda-impl/cu_streams_version.cu
-        src/shared/status-check.cpp
-        src/shared/generator.cpp
+)
+
+set(SOURCES_CPP
         src/cpp-impl/c_version.cpp
 )
+
+set(SHARED
+        src/shared/status-check.cpp
+        src/shared/generator.cpp
+        src/shared/logger.cpp
+)
+
+set (HEADERS
+        include/cuda_header.cuh
+        include/cpp_header.h
+        include/shared_header.h
+)
+
 
 # Add the executable
 add_executable(
         GPU101_project-CUDA
         main.cpp
+        ${HEADERS}
         ${SOURCES_CUDA}
+        ${SOURCES_CPP}
+        ${SHARED}
 )
 
 # Enable separable compilation for CUDA
@@ -70,3 +88,16 @@ set_target_properties(GPU101_project-CUDA PROPERTIES
 if(OpenMP_CXX_FOUND)
     target_link_libraries(GPU101_project-CUDA PUBLIC OpenMP::OpenMP_CXX)
 endif()
+
+# Testing
+include(FetchContent)
+FetchContent_Declare(
+        googletest
+        URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
+)
+# For Windows: Prevent overriding the parent project's compiler/linker settings
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googletest)
+
+enable_testing()
+add_subdirectory(tests)

@@ -1,4 +1,4 @@
-#include "s_header.h"
+#include <shared_header.h>
 
 template <typename T>
 class DynamicArray
@@ -65,6 +65,7 @@ std::pair<float*, float*> generate(int dim)
             std::cout << input->operator[](i) << " ";
         }
         std::cout << " ]\n";
+
         std::cout << "> (filter) [ ";
         for (int i = 0; i < 10; ++i)
         {

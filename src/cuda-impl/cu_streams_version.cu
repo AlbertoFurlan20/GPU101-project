@@ -1,4 +1,4 @@
-#include "cuda_header.cuh"
+#include <cuda_header.cuh>
 
 __global__ void convolution2D_for_streams(const float* input, const float* kernel, float* output,
                                     std::pair<int, int> inputSize, std::pair<int, int> filterParams)
@@ -104,7 +104,7 @@ void setup_streams(const float* input, const float* kernel, float* output,
     delete[] streams;
 }
 
-int main_streams(const int dim, const float* input, const float* filter)
+float* main_streams(const int dim, const float* input, const float* filter)
 {
     int width = dim;
     int height = dim;
@@ -124,15 +124,9 @@ int main_streams(const int dim, const float* input, const float* filter)
     setup_streams(d_input, d_filter, d_output, {width, height}, {FILTER_SIZE, FILTER_RADIUS}, 4);
     cudaMemcpy(h_output_streams, d_output, width * height * sizeof(float), cudaMemcpyDeviceToHost);
 
-    std::cout << "[ ";
-    for (int i = 0; i < 10; ++i) std::cout << h_output_streams[i] << " ";
-    std::cout << "]\n";
-
     cudaFree(d_input);
     cudaFree(d_filter);
     cudaFree(d_output);
 
-    delete[] h_output_streams;
-
-    return 0;
+    return h_output_streams;
 }
