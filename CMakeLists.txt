@@ -43,8 +43,8 @@ endif()
 
 # Setting sources files
 set(SOURCES_CUDA
-        src/cuda-impl/cuda_header.cuh
-        src/cpp-impl/cpp_header.h
+        include/cuda_header.cuh
+        include/cpp_header.h
         src/cuda-impl/cu_shared_version.cu
         src/cuda-impl/cu_tiling_version.cu
         src/cuda-impl/cu_stream_tiling_version.cu
