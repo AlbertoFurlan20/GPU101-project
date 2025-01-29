@@ -3,7 +3,6 @@
 #include <cuda_header.cuh>
 #include <shared_header.h>
 
-
 TEST(IntegrationTest, BasicConvolution) {
     SCOPED_TRACE("Testing convolution function against CPU reference implementation.");
     constexpr auto size = 1000;

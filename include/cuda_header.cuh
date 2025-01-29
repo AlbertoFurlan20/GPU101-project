@@ -22,6 +22,10 @@ float* main_basic(int, const float*, const float*);
 
 __global__ void convolution2D_basic(const float*, const float*, float*, std::pair<int, int>, std::pair<int, int>);
 
+void launch_convolution2D_tiling_streams(const float* , const float* , float* ,
+                                         std::pair<int, int> , std::pair<int, int>,
+                                         int );
+
 float* main_streams(int, const float*, const float*);
 
 float* main_tiling(int, const float*, const float*);

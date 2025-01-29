@@ -38,7 +38,7 @@ target_include_directories(integration_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
 target_link_libraries(integration_test PRIVATE gtest gtest_main OpenMP::OpenMP_CXX)
 
 # Performance test executable (from .cu source)
-add_executable(performance_test
+add_executable(performance_test_suite
         ${CMAKE_SOURCE_DIR}/tests/performance/performance_test.cu  # Corrected the path
         ${SOURCES_CUDA}
         ${SOURCES_CPP}
@@ -46,11 +46,15 @@ add_executable(performance_test
 )
 
 # Add the include directories
-target_include_directories(performance_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(performance_test_suite PRIVATE ${CMAKE_SOURCE_DIR}/include)
 
 # Link required libraries
-target_link_libraries(performance_test PRIVATE gtest gtest_main OpenMP::OpenMP_CXX)
+target_link_libraries(performance_test_suite PRIVATE gtest gtest_main OpenMP::OpenMP_CXX)
 
 # Register the tests
 add_test(NAME IntegrationTest COMMAND integration_test)
-add_test(NAME PerformanceTest COMMAND performance_test)
+
+#add_executable(performance_test_suite performance/performance_test_suite.cu)
+target_link_libraries(performance_test_suite PRIVATE gtest gtest_main OpenMP::OpenMP_CXX pthread)
+
+add_test(NAME PerformanceTest COMMAND performance_test_suite)

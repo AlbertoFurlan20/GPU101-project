@@ -48,11 +48,11 @@ include_directories(include)
 
 # Setting sources files
 set(SOURCES_CUDA
+        src/cuda-impl/cu_basic.cu
         src/cuda-impl/cu_shared_version.cu
         src/cuda-impl/cu_tiling_version.cu
-        src/cuda-impl/cu_stream_tiling_version.cu
-        src/cuda-impl/cu_basic.cu
         src/cuda-impl/cu_streams_version.cu
+        src/cuda-impl/cu_stream_tiling_version.cu
 )
 
 set(SOURCES_CPP

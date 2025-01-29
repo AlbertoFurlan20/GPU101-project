@@ -49,20 +49,14 @@ public:
     }
 };
 
-std::pair<float*, float*> generate(int dim)
+
+std::pair<float*, float*> generate(const int dim)
 {
-    try
-    {
-        const auto input = new DynamicArray<float>(dim * dim);
-        const auto filter = new DynamicArray<float>(FILTER_SIZE * FILTER_SIZE);
+    const auto input = new DynamicArray<float>(dim * dim);
+    const auto filter = new DynamicArray<float>(FILTER_SIZE * FILTER_SIZE);
 
-        filter->init();
-        input->init();
+    filter->init();
+    input->init();
 
-        return std::make_pair(input->getData(), filter->getData());
-    } catch (std::exception& e)
-    {
-        std::cerr << "Error: " << e.what() << std::endl;
-        return std::make_pair(nullptr, nullptr);
-    }
+    return std::make_pair(input->getData(), filter->getData());
 }
