@@ -12,7 +12,12 @@
 /cmake-build-debug
 /cmake-build-debug-visual-studio
 /cmake-build-debug---cuda
+/cmake-build-remote-host
+/cmake-build-shh---cuda
 
 # added to avoid dumb files creation
 ._*
 .DS_Store
+
+# custom files
+logs
